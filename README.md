@@ -4,6 +4,18 @@
 
 どんなエージェントでも、このリポジトリをクローンして `AGENTS.md` を読ませるだけで、自分の現在のレベルを評価し、次のレベルに上がるためのロードマップを得られます。
 
+## 対応エージェント
+
+| エージェント | 自動ロードするファイル | ステータス |
+|-------------|----------------------|-----------|
+| Claude Code | `CLAUDE.md` | ✅ |
+| Cursor | `.cursorrules` | ✅ |
+| GitHub Copilot / Codex | `.github/copilot-instructions.md`, `AGENTS.md` | ✅ |
+| Windsurf | `.windsurfrules` | 🔧 必要なら追加 |
+| その他 | `AGENTS.md`（汎用） | ✅ |
+
+どのエージェントでも、クローンして「自分のレベルを評価して」と指示するだけで使えます。`AGENTS.md` が評価手順の本体です。
+
 ## Quick Start
 
 ```bash

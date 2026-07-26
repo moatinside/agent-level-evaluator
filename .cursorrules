@@ -1,0 +1,12 @@
+# Agent Level Evaluator
+
+This repository provides a self-evaluation framework for AI agents. 
+
+## Usage
+
+1. Read `FRAMEWORK.md` for Level 1-9 definitions (restaurant metaphor).
+2. Read `AGENTS.md` for the evaluation protocol.
+3. Follow the 6-axis self-assessment.
+4. Run `python3 scripts/evaluate.py` for an interactive evaluation.
+
+The user will ask you to evaluate yourself. Follow the AGENTS.md protocol.
