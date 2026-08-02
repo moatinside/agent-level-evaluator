@@ -65,19 +65,19 @@
 - **定義**: 最先端モデルが発見ループを駆動
 - **検証方法**: モデル変更後の最初のサイクルで前世代を超える仮説を生成
 
-## 進捗サマリテンプレート
+## 進捗サマリ（2026-08-02 更新）
 
 ```
-Phase 0:  0/3
-  ├─ 0.1 Ensemble:       [ ]
-  ├─ 0.2 Self-Validate:  [ ]
-  └─ 0.3 Metrics:        [ ]
+Phase 0:  3/3 ✅
+  ├─ 0.1 Ensemble:       ✅
+  ├─ 0.2 Self-Validate:  ✅
+  └─ 0.3 Metrics:        ✅
 
-Phase 1:  0/4
-  ├─ 1.1 Hypothesis:     [ ]
-  ├─ 1.2 Pipeline:       [ ]
-  ├─ 1.3 Knowledge DB:   [ ]
-  └─ 1.4 Validator:      [ ]
+Phase 1:  4/4 ✅
+  ├─ 1.1 Hypothesis:     ✅
+  ├─ 1.2 Pipeline:       ✅ (スキル＋H1実走 2026-07-26)
+  ├─ 1.3 Knowledge DB:   ✅ (ファイルストア＋check-experiment-index.py PASS)
+  └─ 1.4 Validator:      ✅ (experiment-validator スキル＋validate-experiment.py 8/8)
 
 Phase 2:  0/3
   ├─ 2.1 Evolution:      [ ]
