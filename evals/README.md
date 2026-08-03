@@ -23,6 +23,25 @@ python3 evals/run_evals.py --ablate
 python3 evals/run_evals.py --json
 ```
 
+## レベル評価との統合 (自動同時実行)
+
+`scripts/evaluate.py`（エージェントレベル自己評価）は、自己申告時にこのハーネスを
+**自動で同時実行**し、客観指標をレポートに埋め込む。
+
+```bash
+python3 scripts/evaluate.py             # 自己申告 + evals 自動実行
+python3 scripts/evaluate.py --quick     # クイック + evals 自動実行
+python3 scripts/evaluate.py --no-evals  # evals をスキップ（主観のみ）
+```
+
+仕組み:
+- `evaluate.py` はサブプロセスで `run_evals.py --json` を実行（依存ゼロ維持のため import はしない）
+- 実行結果はレポートの「客観指標 (Skill Evals)」セクションに表形式で出力
+- evals 実行に失敗しても自己評価は継続する（`None` 扱いでセクション省略）
+
+これにより「自己進化 (Level 7)」のような自己申告軸が、実際にスキルが
+機能していることの機械的エビデンスで裏付けられる。
+
 ## テスト定義の書き方
 
 `evals/tests/<skill>.yaml` にスキル単位で定義する:

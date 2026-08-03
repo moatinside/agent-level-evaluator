@@ -5,15 +5,26 @@ Agent Level Self-Evaluation Script
 依存ゼロ（Python標準ライブラリのみ）。
 6軸のアンケートに答えると、現在のエージェントレベルを推定する。
 
+自己申告時に evals/run_evals.py を同時実行し、客観指標（スキル単位の
+機械的検証結果）をレポートに埋め込む。主観スコアを客観数値で裏付ける。
+
 Usage:
-    python3 evaluate.py           # インタラクティブモード
-    python3 evaluate.py --quick   # クイックモード（すべて3と仮定）
+    python3 evaluate.py             # インタラクティブモード（evals 同時実行）
+    python3 evaluate.py --quick     # クイックモード（すべて50と仮定・evals 同時実行）
+    python3 evaluate.py --no-evals  # スキル評価 (evals) をスキップ
 """
+
+from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 from datetime import datetime
+from pathlib import Path
+
+# evals/run_evals.py（リポジトリルート相対）
+EVALS_SCRIPT = Path(__file__).resolve().parent.parent / "evals" / "run_evals.py"
 
 # 6軸の定義
 AXES = [
@@ -113,6 +124,56 @@ def ask_score(axis: dict) -> int:
             return -1
 
 
+def run_skill_evals() -> list | None:
+    """
+    evals/run_evals.py --json をサブプロセスで実行し、客観指標を取得する。
+    実行不可能な場合は None を返す（自己評価は継続する）。
+    """
+    if not EVALS_SCRIPT.exists():
+        print("\n⚠ evals/run_evals.py が見つからないため、スキル評価をスキップします")
+        return None
+    print("\n🔍 スキル評価 (evals) を同時実行中...")
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(EVALS_SCRIPT), "--json"],
+            capture_output=True, text=True, timeout=120,
+        )
+    except (OSError, subprocess.TimeoutExpired) as e:
+        print(f"⚠ スキル評価の実行に失敗しました: {e}")
+        return None
+    try:
+        return json.loads(proc.stdout)
+    except (json.JSONDecodeError, ValueError):
+        print("⚠ スキル評価の出力を解析できませんでした")
+        return None
+
+
+def format_evals_section(eval_results: list | None) -> str:
+    """スキル評価結果をレポート用マークダウンに整形する。"""
+    if not eval_results:
+        return ""
+    lines = ["", "## 客観指標 (Skill Evals)", ""]
+    lines.append("自己申告と同時に実行したスキル単位の機械的検証結果：")
+    lines.append("")
+    lines.append("| スキル | PASS/合計 | スキル実体 |")
+    lines.append("|--------|-----------|-----------|")
+    total_passed = total_all = 0
+    for r in eval_results:
+        tests = r.get("happy", []) + r.get("negative", [])
+        passed = sum(1 for t in tests if t.get("pass"))
+        total_all += len(tests)
+        total_passed += passed
+        found = "✅ あり" if r.get("skill_found") else "❌ なし"
+        lines.append(f"| {r.get('skill', '?')} | {passed}/{len(tests)} | {found} |")
+    lines.append("")
+    lines.append(f"**evals 総合: {total_passed}/{total_all} PASS**")
+    if total_all and total_passed == total_all:
+        lines.append("→ 全スキルが客観検証を通過。自己申告は機械的裏付けあり。")
+    else:
+        lines.append("→ 不合格あり。スキル品質を改善してから再評価してください。")
+    return "\n".join(lines)
+
+
 def determine_level(scores: dict) -> int:
     """スコアから総合レベルを判定"""
     if scores.get("self_evolution", 0) >= 60:
@@ -130,14 +191,14 @@ def determine_level(scores: dict) -> int:
     return 1
 
 
-def generate_report(scores: dict, level: int, output_path: str = ""):
+def generate_report(scores: dict, level: int, output_path: str = "", eval_results: list | None = None):
     """評価レポートを生成"""
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     
     report = f"""# Agent Level Evaluation Report
 
 **評価日時:** {now}
-**方法:** 6軸セルフアセスメント
+**方法:** 6軸セルフアセスメント + スキル機械検証 (evals)
 
 ## スコア
 """
@@ -179,6 +240,9 @@ def generate_report(scores: dict, level: int, output_path: str = ""):
             condition = "Level 7達成後"
         report += f"| {lv} | {reached} | {condition} |\n"
     
+    # 客観指標 (Skill Evals)
+    report += format_evals_section(eval_results)
+
     # 次のステップ
     report += "\n## 次のステップ\n\n"
     next_level = level + 1
@@ -200,15 +264,16 @@ def generate_report(scores: dict, level: int, output_path: str = ""):
     return report
 
 
-def quick_mode():
-    """クイックモード：全軸3と仮定"""
+def quick_mode(run_evals: bool = True):
+    """クイックモード：全軸50と仮定"""
     scores = {a["id"]: 50 for a in AXES}
     level = determine_level(scores)
-    print(generate_report(scores, level))
+    eval_results = run_skill_evals() if run_evals else None
+    print(generate_report(scores, level, eval_results=eval_results))
     return scores, level
 
 
-def interactive_mode():
+def interactive_mode(run_evals: bool = True):
     """対話モード：1軸ずつ質問"""
     scores = {}
     print("Agent Level Evaluator — 対話モード")
@@ -223,21 +288,24 @@ def interactive_mode():
         scores[axis["id"]] = score
     
     level = determine_level(scores)
+    eval_results = run_skill_evals() if run_evals else None
     print()
     print("=" * 60)
-    print(generate_report(scores, level))
+    print(generate_report(scores, level, eval_results=eval_results))
     return scores, level
 
 
 def main():
+    run_evals = "--no-evals" not in sys.argv
     if "--quick" in sys.argv:
-        quick_mode()
+        quick_mode(run_evals=run_evals)
     elif "--help" in sys.argv or "-h" in sys.argv:
-        print("Usage: python3 evaluate.py [--quick]")
-        print("  (no flag)  インタラクティブモード")
-        print("  --quick    クイックモード（全軸50で仮評価）")
+        print("Usage: python3 evaluate.py [--quick] [--no-evals]")
+        print("  (no flag)    インタラクティブモード（evals 同時実行）")
+        print("  --quick      クイックモード（全軸50で仮評価・evals 同時実行）")
+        print("  --no-evals   スキル評価 (evals) をスキップ")
     else:
-        interactive_mode()
+        interactive_mode(run_evals=run_evals)
 
 
 if __name__ == "__main__":

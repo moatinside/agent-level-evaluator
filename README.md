@@ -63,10 +63,14 @@ agent-level-evaluator/
 ## 評価スクリプト
 
 ```bash
-python3 scripts/evaluate.py
+python3 scripts/evaluate.py             # インタラクティブ評価（evals 同時実行）
+python3 scripts/evaluate.py --quick     # クイック（全軸50と仮定・evals 同時実行）
+python3 scripts/evaluate.py --no-evals  # スキル評価をスキップ
 ```
 
 各レベル（3〜7）を6軸でスコアリングし、どの能力が不足しているかを可視化します。
+**自己申告と同時に `evals/run_evals.py` が自動実行され、客観指標（スキル単位の
+機械検証結果）がレポートに埋め込まれます** — 主観申告を客観数値で裏付ける構成です。
 
 ## スキル評価 (Skill Evals)
 
