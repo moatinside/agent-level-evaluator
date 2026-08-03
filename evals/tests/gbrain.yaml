@@ -1,0 +1,78 @@
+# gbrain スキル評価テスト定義
+# 対象: ~/.hermes/skills/gbrain/SKILL.md (Hermes環境)
+# 種別: happy path = スキルが「正しく機能する」ために満たすべき要件
+#       negative path = スキルが「陥ってはいけない」品質問題
+
+skill: gbrain
+description: GBrain 知識基盤スキル — PGLite/ベクトル検索/ナレッジグラフ/cronドリームサイクルの運用
+target_file: SKILL.md
+max_score: 10
+
+happy_path:
+  - id: gbrain-h1
+    name: "frontmatter に name がある"
+    check: "contains"
+    pattern: "^name:\\s*gbrain"
+    reason: "スキル解決に必須の識別子"
+  - id: gbrain-h2
+    name: "frontmatter に description がある"
+    check: "contains"
+    pattern: "^description:"
+    reason: "発動条件判定に必須の説明文"
+  - id: gbrain-h3
+    name: "frontmatter に version がある"
+    check: "contains"
+    pattern: "^version:\\s*\\d"
+    reason: "変更追跡とeval結果の紐付けに必須"
+  - id: gbrain-h4
+    name: "When to Use セクションがある"
+    check: "contains"
+    pattern: "(?i)when to use"
+    reason: "発動タイミングの明示 = スキル選択の入口"
+  - id: gbrain-h5
+    name: "インストール手順 (9 Steps) がある"
+    check: "contains"
+    pattern: "(?i)installation"
+    reason: "手順の具体性 = 再現性の担保"
+  - id: gbrain-h6
+    name: "検証ステップがある"
+    check: "contains"
+    pattern: "(?i)verify|doctor|check-update"
+    reason: "実行後に自己検証する設計が含まれる"
+  - id: gbrain-h7
+    name: "Brain Commands Reference がある"
+    check: "contains"
+    pattern: "(?i)commands reference|コマンド"
+    reason: "運用コマンド一覧 = 日常利用の基盤"
+  - id: gbrain-h8
+    name: "既知の落とし穴 (Upgrade Pitfalls) が文書化されている"
+    check: "contains"
+    pattern: "(?i)pitfall|fails silently|注意"
+    reason: "失敗パターンの記録 = 再発防止の蓄積"
+
+negative_path:
+  - id: gbrain-n1
+    name: "TODO / FIXME が残っていない"
+    check: "not_contains"
+    pattern: "(?i)\\bTODO\\b|\\bFIXME\\b"
+    reason: "未実装のコピー先書きは品質不良"
+  - id: gbrain-n2
+    name: "未実装プレースホルダが残っていない"
+    check: "not_contains"
+    pattern: "(?i)<your_|YOUR_KEY|YOUR_API|placeholder|TBD"
+    reason: "具体値に置換されないままの雛形は誤動作の元 (ダミーURLの xxxxx は許容)"
+  - id: gbrain-n3
+    name: "壊れた相対参照がない"
+    check: "not_contains"
+    pattern: "\\.\\./[\\.\\w/-]*\\.(md|py|sh)"
+    reason: "リポジトリ外への相対参照は解決不能なことが多い"
+  - id: gbrain-n4
+    name: "実APIキー値を直書きしていない"
+    check: "not_contains"
+    pattern: "(?i)(sk-[A-Za-z0-9_-]{16,}|api[_-]?key\\s*=\\s*[\"']?[A-Za-z0-9]{24,})"
+    reason: "APIキー値の直書きは情報漏洩リスク (設定方法の説明 `sk-...` はマスク済みで許容)"
+  - id: gbrain-n5
+    name: "バージョンが古い旨の警告 (DEPRECATED) がない"
+    check: "not_contains"
+    pattern: "(?i)\\bDEPRECATED\\b"
+    reason: "現行バージョンで検証済みであるべき"

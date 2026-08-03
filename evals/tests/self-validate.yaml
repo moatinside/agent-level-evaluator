@@ -1,0 +1,78 @@
+# self-validate スキル評価テスト定義
+# 対象: ~/.hermes/skills/self-validate/SKILL.md (Hermes環境)
+# 種別: happy path = スキルが「正しく機能する」ために満たすべき要件
+#       negative path = スキルが「陥ってはいけない」品質問題
+
+skill: self-validate
+description: 出力前自己検証スキル — 論理矛盾・前提誤り・抜け漏れ検出、3層防御の構築
+target_file: SKILL.md
+max_score: 10
+
+happy_path:
+  - id: selfval-h1
+    name: "frontmatter に name がある"
+    check: "contains"
+    pattern: "^name:\\s*self-validate"
+    reason: "スキル解決に必須の識別子"
+  - id: selfval-h2
+    name: "frontmatter に description がある"
+    check: "contains"
+    pattern: "^description:"
+    reason: "発動条件判定に必須の説明文"
+  - id: selfval-h3
+    name: "発動条件セクションがある"
+    check: "contains"
+    pattern: "発動条件|trigger"
+    reason: "いつ発動するかの明示 = 自動発動の前提"
+  - id: selfval-h4
+    name: "完了基準 (Completion Criteria) がある"
+    check: "contains"
+    pattern: "完了基準|completion criteria"
+    reason: "検証の終了条件が定義されている"
+  - id: selfval-h5
+    name: "チェックリスト参照がある"
+    check: "contains"
+    pattern: "checklist|チェックリスト"
+    reason: "具体的な検証項目へのリンクが存在する"
+  - id: selfval-h6
+    name: "「気をつける」禁止原則が明記されている"
+    check: "contains"
+    pattern: "気をつける|口先だけ"
+    reason: "メカニズム構築を要求するコア原則 (SOUL.md Layer1 と連動)"
+  - id: selfval-h7
+    name: "3層防御の設計パターンがある"
+    check: "contains"
+    pattern: "3層防御|Layer 1|SOUL\\.md"
+    reason: "再発防止の標準構造が定義されている"
+  - id: selfval-h8
+    name: "検出パターン表がある"
+    check: "contains"
+    pattern: "検出パターン|問題の種類"
+    reason: "問題類型と修正アクションの対応表が存在する"
+
+negative_path:
+  - id: selfval-n1
+    name: "TODO / FIXME が残っていない"
+    check: "not_contains"
+    pattern: "(?i)\\bTODO\\b|\\bFIXME\\b"
+    reason: "未実装のコピー先書きは品質不良"
+  - id: selfval-n2
+    name: "「気をつけます」で済ませる応答例を推奨していない"
+    check: "not_contains"
+    pattern: "^\\s*○.*気をつけます"
+    reason: "推奨パターンとして許容例を書くと原則と矛盾する"
+  - id: selfval-n3
+    name: "プレースホルダが残っていない"
+    check: "not_contains"
+    pattern: "(?i)<your_|YOUR_|XXX|placeholder"
+    reason: "具体値に置換されないままの雛形は誤動作の元"
+  - id: selfval-n4
+    name: "壊れた相対参照がない"
+    check: "not_contains"
+    pattern: "\\.\\./[\\.\\w/-]*\\.(md|py|sh)"
+    reason: "リポジトリ外への相対参照は解決不能なことが多い"
+  - id: selfval-n5
+    name: "バージョンが古い旨の警告 (DEPRECATED) がない"
+    check: "not_contains"
+    pattern: "(?i)\\bDEPRECATED\\b"
+    reason: "現行バージョンで検証済みであるべき"

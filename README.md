@@ -53,6 +53,10 @@ agent-level-evaluator/
 ├── CHECKPOINTS.md      ← Phase 0-3 のチェックポイントテンプレート
 ├── scripts/
 │   └── evaluate.py     ← Python3 自己評価スクリプト（標準ライブラリのみ）
+├── evals/              ← スキル単位の品質保証（Schmid: Don't Ship Skills Without Evals）
+│   ├── README.md       ← テスト定義の書き方・使い方
+│   ├── run_evals.py    ← 評価ハーネス（YAMLテスト読込・regex判定・アブレーション）
+│   └── tests/          ← <skill>.yaml 形式のテスト定義（例: gbrain.yaml, self-validate.yaml）
 └── README.md
 ```
 
@@ -63,6 +67,16 @@ python3 scripts/evaluate.py
 ```
 
 各レベル（3〜7）を6軸でスコアリングし、どの能力が不足しているかを可視化します。
+
+## スキル評価 (Skill Evals)
+
+レベル評価（エージェント全体）に加えて、`evals/` で**スキル単位の品質保証**を行います。
+スキルを追加・変更したら eval を実行し、改善を確認できない限りマージしない運用です。
+
+```bash
+python3 evals/run_evals.py            # 全スキルの構造健全性チェック
+python3 evals/run_evals.py --ablate   # アブレーション（スキル有無で結果比較）
+```
 
 ## 使い方
 

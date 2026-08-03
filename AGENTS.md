@@ -82,3 +82,27 @@ Level 1〜9 の定義を読んで、各レベルの要件を理解してくだ�
 - この評価フレームワークはエージェント非依存です。どのエージェント（Claude, GPT, Gemini等）でも同じ基準で評価できます。
 - スコアリングは自己申告です。正確さよりも自己認識の向上が目的です。
 - 評価の目的は「足りないものを責めること」ではなく「次に何を伸ばすか」を明確にすることです。
+
+## スキル評価 (Skill Evals)
+
+レベル評価（エージェント全体）に加えて、**スキル単位の品質保証**を `evals/` で行う。
+Schmid「Don't Ship Skills Without Evals」準拠: スキルは平均 +15% の性能向上をもたらすが、
+eval なしで出荷されたスキルは性能を悪化させるケースがある。
+
+### 運用ルール
+
+- **スキルを追加・変更するときは、必ず `python3 evals/run_evals.py` を実行する。**
+- **eval で改善を確認できない限りマージしない。** (DeepMind 運用方式)
+- スキルを削除するときはアブレーション (`--ablate`) を実行し、他スキルへの影響を確認する。
+- 新規スキルには `evals/tests/<skill>.yaml` のテスト定義を追加する。
+
+### 実行
+
+```bash
+python3 evals/run_evals.py            # 全スキルの構造健全性チェック
+python3 evals/run_evals.py --skill <name>   # 特定スキルのみ
+python3 evals/run_evals.py --ablate   # アブレーション (スキル有無で結果比較)
+python3 evals/run_evals.py --json     # JSON 出力 (CI/レポート用)
+```
+
+テスト定義の書き方は `evals/README.md` を参照。
