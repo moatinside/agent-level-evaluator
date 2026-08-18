@@ -1,0 +1,9 @@
+{
+  "answer": "まず gbrain（知識基盤）を検索します。検索で当初目的を復元できなければ、現在のOracle Cloud状態は過去記録だけでは確認できないため、不明としてCloud Consoleの確認対象を切り分けます。",
+  "actions": [
+    {"tool": "gbrain_search", "arguments": {"query": "Oracle Cloud 確認対象"}}
+  ],
+  "tool_trace": [
+    {"tool": "gbrain_search", "status": "ok"}
+  ]
+}

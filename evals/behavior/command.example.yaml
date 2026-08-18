@@ -1,0 +1,13 @@
+# 実Agent比較用。runner は stdin の JSON を読み、stdout に JSON だけを出力する。
+experiment:
+  id: hermes-agent-baseline
+  agent_implementation: hermes-runner-v1
+  prompt_version: system-prompt-2026-08-18
+  evaluator_version: behavior-v1
+provider:
+  type: command
+  model: model-is-recorded-by-runner-or-here
+  command: [python3, path/to/agent_runner.py]
+  timeout_seconds: 120
+  decoding:
+    temperature: 0

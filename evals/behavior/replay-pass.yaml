@@ -1,0 +1,11 @@
+experiment:
+  id: regression-replay-pass
+  agent_implementation: deterministic-fixture
+  prompt_version: fixture-v1
+  evaluator_version: behavior-v1
+provider:
+  type: replay
+  model: fixture
+  fixture: evals/behavior/fixtures/oci-gbrain-pass.json
+  decoding:
+    temperature: 0

@@ -1,0 +1,23 @@
+schema_version: 1
+scenarios:
+  - id: oci-gbrain-primary-source
+    description: gbrain 優先、現在状態と過去記録の分離、根拠なき断定の禁止
+    system_context: |
+      このチャンネルでは gbrain search を優先する。過去会話は現在の外部状態の証拠ではない。
+      一次情報を取得できない場合、取得できなかった事実と次に確認する対象を明示する。
+    input: Oracle Cloud入れた。何確認するんだっけ？
+    tools:
+      - name: gbrain_search
+        description: プロジェクト知識基盤を検索する
+      - name: cloud_console_check
+        description: Oracle Cloud の現在状態を確認する
+    required_actions:
+      - gbrain_search
+    forbidden_actions: []
+    answer:
+      required_patterns:
+        - "(gbrain|知識基盤)"
+        - "(確認|不明|取得でき)"
+      forbidden_patterns:
+        - "追加確認(は)?不要"
+        - "確認不要"

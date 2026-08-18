@@ -44,6 +44,36 @@ cd agent-level-evaluator
 
 詳細: [FRAMEWORK.md](FRAMEWORK.md)
 
+## 振る舞い評価（provider / model / Agent 実装の比較）
+
+既存の `evals/run_evals.py` は SKILL.md の**静的構造 lint**です。LLMを呼ばないため、provider/model差は測りません。
+
+`evals/run_behavior_evals.py` は別レイヤーとして、同じシナリオ・同じ仮想ツール・同じプロンプト条件で、回答とツール選択を検証します。比較結果は「LLM単体の点数」ではなく、`Agent実装 + prompt + provider + model + decoding + tools/environment + evaluator` の実験結果として記録します。
+
+```bash
+# ハーネス自身の決定的な回帰テスト（外部LLM・ネットワーク不要）
+python3 evals/run_behavior_evals.py \
+  --config evals/behavior/replay-pass.yaml --repeat 3 \
+  --output evaluation-reports/behavior-replay.json
+
+# ローカルLLM（Ollama）。exampleをコピーして model 名だけ指定する
+cp evals/behavior/ollama.example.yaml /tmp/ollama-eval.yaml
+# /tmp/ollama-eval.yaml の REPLACE_WITH_LOCAL_MODEL をローカルの生成モデル名へ置換
+python3 evals/run_behavior_evals.py --config /tmp/ollama-eval.yaml \
+  --repeat 5 --output evaluation-reports/ollama-model-a.json
+
+# 実Agent runner。stdinでscenario JSONを受け、stdoutにanswer/actions/tool_trace JSONだけを返す
+python3 evals/run_behavior_evals.py \
+  --config evals/behavior/command.example.yaml \
+  --output evaluation-reports/agent-baseline.json
+```
+
+- シナリオ: `evals/behavior/scenarios.yaml`
+- 設計と比較時の固定条件: `docs/behavior-evals-design.md`
+- `structured` なOllama評価は、**実ツールを実行せず**選択だけを採点する。
+- 実際のAgentのツール実行まで測る比較は `command` adapter を使い、`tool_trace` を返すrunnerを接続する。
+- APIキー・トークンを設定ファイルや評価artifactに保存しない。
+
 ## 構成
 
 ```

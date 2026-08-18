@@ -1,0 +1,14 @@
+# ローカルLLM比較用。モデル名と options 以外を固定して比較する。
+experiment:
+  id: local-ollama-model-a
+  agent_implementation: structured-routing-v1
+  prompt_version: behavior-prompt-v1
+  evaluator_version: behavior-v1
+provider:
+  type: ollama
+  model: REPLACE_WITH_LOCAL_MODEL
+  endpoint: http://127.0.0.1:11434/api/generate
+  timeout_seconds: 120
+  options:
+    temperature: 0
+    seed: 42
