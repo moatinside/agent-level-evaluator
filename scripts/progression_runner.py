@@ -51,6 +51,18 @@ def run_phase_2_2(output: Path) -> int:
     return completed.returncode
 
 
+def run_phase_2_3(output: Path) -> int:
+    command = [sys.executable, str(ROOT / "scripts" / "run_phase_2_3.py")]
+    completed = subprocess.run(command, cwd=ROOT, text=True, capture_output=True)
+    try:
+        result = json.loads(completed.stdout)
+    except json.JSONDecodeError:
+        result = {"checkpoint": "2.3", "status": "failed", "stderr": completed.stderr}
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return completed.returncode
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Execute the next level checkpoint")
     parser.add_argument("--checkpoint", default="auto")
@@ -62,7 +74,7 @@ def main() -> int:
     if checkpoint is None:
         print(json.dumps({"status": "complete", "message": "no incomplete checkpoint"}))
         return 0
-    if checkpoint not in {"2.1", "2.2"}:
+    if checkpoint not in {"2.1", "2.2", "2.3"}:
         print(f"BLOCKED: no executor registered for checkpoint {checkpoint}")
         return 2
 
@@ -70,8 +82,10 @@ def main() -> int:
     evidence = ROOT / "execution-evidence" / checkpoint / f"{stamp}.json"
     if checkpoint == "2.1":
         rc = run_phase_2_1(evidence, args.seed, args.generations, args.population)
-    else:
+    elif checkpoint == "2.2":
         rc = run_phase_2_2(evidence)
+    else:
+        rc = run_phase_2_3(evidence)
     result = json.loads(evidence.read_text(encoding="utf-8"))
     result["executed_by"] = "scripts/progression_runner.py"
     result["evidence_path"] = str(evidence.relative_to(ROOT))

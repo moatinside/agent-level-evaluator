@@ -1,0 +1,18 @@
+{
+  "checkpoint": "2.3",
+  "started_at": "2026-08-30T02:58:04.027971+00:00",
+  "runs": [
+    {
+      "date": "2026-08-30",
+      "evidence": "execution-evidence/2.3/runs/2026-08-30-3fc37c188097.json",
+      "novel": true
+    }
+  ],
+  "results": [
+    "optimize evacuation shelter power allocation using weather forecasts"
+  ],
+  "status": "observing",
+  "last_run_at": "2026-08-30T02:58:04.027971+00:00",
+  "elapsed_days": 0,
+  "novel_results": 1
+}

@@ -94,6 +94,15 @@ Phase 2.1を完了扱いにできるのは、以下をすべて満たした場�
 - ランダム探索との比較結果が保存されている
 - 再実行コマンドと実行ログが保存されている
 
+## Definition of done for Phase 2.3
+
+Phase 2.3は、1回の成功や時刻注入テストでは完了にできない。
+
+- 日次Executorが実時間で7日以上稼働している
+- 7日間に3件以上の検証可能な新結果がある
+- `execution-evidence/2.3/state.json` と各run証拠が存在する
+- 重複実行、失敗、未登録Executorを隠さず記録している
+
 ## Required guard
 
 ```bash

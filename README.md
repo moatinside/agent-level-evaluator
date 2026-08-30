@@ -90,6 +90,7 @@ agent-level-evaluator/
 │   └── progression_gate.py ← 未完了項目・実行証拠の停滞ゲート
 │   ├── progression_runner.py ← チェックポイント実行オーケストレータ
 │   └── run_phase_2_1.py ← 2.1進化的コード探索Executor
+│   └── run_phase_2_2.py / run_phase_2_3.py ← 2.2/2.3 Executor
 ├── evals/              ← スキル単位の品質保証（Schmid: Don't Ship Skills Without Evals）
 │   ├── README.md       ← テスト定義の書き方・使い方
 │   ├── run_evals.py    ← 評価ハーネス（YAMLテスト読込・regex判定・アブレーション）
@@ -128,6 +129,8 @@ python3 evals/run_evals.py --ablate   # アブレーション（スキル有無�
 
 評価結果を報告するだけでは、レベルアップとはみなしません。実行可能な成果物、合格テスト、実行ログが揃って初めてチェックポイントを完了扱いにします。
 詳細な状態遷移と承認境界は [autonomous-progression-protocol.md](docs/autonomous-progression-protocol.md) を参照してください。
+
+Phase 2.3は日次実行で状態を蓄積し、実時間7日・新規結果3件以上を満たすまで完了扱いにしません。
 
 ## License
 

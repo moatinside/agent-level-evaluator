@@ -1,0 +1,9 @@
+{
+  "date": "2026-08-30",
+  "timestamp": "2026-08-30T02:58:04.027971+00:00",
+  "candidate": "optimize evacuation shelter power allocation using weather forecasts",
+  "max_similarity_to_history": 0.0,
+  "novel": true,
+  "verifiable": true,
+  "verification": "candidate has a concrete measurable target and can be tested offline"
+}
