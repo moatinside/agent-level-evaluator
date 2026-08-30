@@ -123,10 +123,11 @@ python3 evals/run_evals.py --ablate   # アブレーション（スキル有無�
 
 1. **自己評価**: エージェントに「このリポジトリで自分のレベルを評価して」と指示
 2. **次の実行対象を特定**: `python3 scripts/progression_gate.py`
-3. **レベルアップ**: `docs/autonomous-progression-protocol.md` に従い、計画→実行→検証まで行う
+3. **レベルアップ**: `python3 scripts/progression_runner.py --checkpoint auto` で、実行器が登録された最初の未完了項目を起動する
 4. **定期評価**: evaluate.py をcron等で定期実行し、進捗をトラッキング
 
 評価結果を報告するだけでは、レベルアップとはみなしません。実行可能な成果物、合格テスト、実行ログが揃って初めてチェックポイントを完了扱いにします。
+詳細な状態遷移と承認境界は [autonomous-progression-protocol.md](docs/autonomous-progression-protocol.md) を参照してください。
 
 ## License
 
