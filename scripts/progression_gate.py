@@ -40,6 +40,14 @@ def has_evidence(root: Path, checkpoint_id: str) -> bool:
     return False
 
 
+def has_plan(root: Path, checkpoint_id: str) -> bool:
+    plans = root / "execution-plans"
+    return plans.is_dir() and any(
+        path.is_file() and checkpoint_id in path.read_text(encoding="utf-8", errors="replace")
+        for path in plans.rglob("*")
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Show the next level checkpoint")
     parser.add_argument("--root", default=str(Path(__file__).resolve().parent.parent))
@@ -56,9 +64,10 @@ def main() -> int:
         return 0
 
     checkpoint_id, title = next_item
+    plan = has_plan(root, checkpoint_id)
     evidence = has_evidence(root, checkpoint_id)
     print(f"STATUS: pending — checkpoint {checkpoint_id}: {title}")
-    print(f"EXECUTION_PLAN: required for {checkpoint_id}")
+    print(f"EXECUTION_PLAN: {'found' if plan else 'missing'}")
     print(f"EXECUTION_EVIDENCE: {'found' if evidence else 'missing'}")
     print("NEXT_ACTION: create or execute the smallest plan for this checkpoint")
     print("COMPLETION_RULE: do not mark complete without artifact, test, and log")

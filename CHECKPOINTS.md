@@ -79,8 +79,8 @@ Phase 1:  4/4 ✅
   ├─ 1.3 Knowledge DB:   ✅ (ファイルストア＋check-experiment-index.py PASS)
   └─ 1.4 Validator:      ✅ (experiment-validator スキル＋validate-experiment.py 8/8)
 
-Phase 2:  0/3
-  ├─ 2.1 Evolution:      [ ]
+Phase 2:  1/3 ✅
+  ├─ 2.1 Evolution:      ✅ (実行証拠: execution-evidence/2.1/20260830T024319Z.json)
   ├─ 2.2 Novelty:        [ ]
   └─ 2.3 Open Loop:      [ ]
 

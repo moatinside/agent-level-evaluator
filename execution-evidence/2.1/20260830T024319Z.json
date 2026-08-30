@@ -1,0 +1,161 @@
+{
+  "checkpoint": "2.1",
+  "experiment": "evolutionary-code-search",
+  "status": "passed",
+  "seed": 42,
+  "generations": 12,
+  "population_size": 24,
+  "initial": {
+    "coefficients": [
+      2,
+      -7,
+      1
+    ],
+    "score": 0.00014703720041170417,
+    "code": "def candidate(x): return 2*x*x + -7*x + 1"
+  },
+  "final": {
+    "coefficients": [
+      2,
+      -3,
+      5
+    ],
+    "score": 1.0,
+    "code": "def candidate(x): return 2*x*x + -3*x + 5"
+  },
+  "random_baseline": {
+    "best": [
+      2,
+      -6,
+      10
+    ],
+    "best_score": 0.0002440214738897023,
+    "evaluations": 288
+  },
+  "history": [
+    {
+      "generation": 0,
+      "best_score": 0.00014703720041170417,
+      "best": [
+        2,
+        -7,
+        1
+      ]
+    },
+    {
+      "generation": 1,
+      "best_score": 0.0005249343832020997,
+      "best": [
+        2,
+        -5,
+        1
+      ]
+    },
+    {
+      "generation": 2,
+      "best_score": 0.0005878894767783657,
+      "best": [
+        2,
+        -5,
+        3
+      ]
+    },
+    {
+      "generation": 3,
+      "best_score": 0.0005878894767783657,
+      "best": [
+        2,
+        -5,
+        3
+      ]
+    },
+    {
+      "generation": 4,
+      "best_score": 0.014492753623188406,
+      "best": [
+        2,
+        -3,
+        3
+      ]
+    },
+    {
+      "generation": 5,
+      "best_score": 1.0,
+      "best": [
+        2,
+        -3,
+        5
+      ]
+    },
+    {
+      "generation": 6,
+      "best_score": 1.0,
+      "best": [
+        2,
+        -3,
+        5
+      ]
+    },
+    {
+      "generation": 7,
+      "best_score": 1.0,
+      "best": [
+        2,
+        -3,
+        5
+      ]
+    },
+    {
+      "generation": 8,
+      "best_score": 1.0,
+      "best": [
+        2,
+        -3,
+        5
+      ]
+    },
+    {
+      "generation": 9,
+      "best_score": 1.0,
+      "best": [
+        2,
+        -3,
+        5
+      ]
+    },
+    {
+      "generation": 10,
+      "best_score": 1.0,
+      "best": [
+        2,
+        -3,
+        5
+      ]
+    },
+    {
+      "generation": 11,
+      "best_score": 1.0,
+      "best": [
+        2,
+        -3,
+        5
+      ]
+    },
+    {
+      "generation": 12,
+      "best_score": 1.0,
+      "best": [
+        2,
+        -3,
+        5
+      ]
+    }
+  ],
+  "acceptance": {
+    "multiple_generations": true,
+    "beats_initial": true,
+    "beats_random": true
+  },
+  "executed_by": "scripts/progression_runner.py",
+  "evidence_path": "execution-evidence/2.1/20260830T024319Z.json"
+}

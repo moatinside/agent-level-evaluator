@@ -83,9 +83,13 @@ agent-level-evaluator/
 ├── CHECKPOINTS.md      ← Phase 0-3 のチェックポイントテンプレート
 ├── docs/
 │   └── autonomous-progression-protocol.md ← 評価から実行へ遷移する必須プロトコル
+├── execution-plans/     ← 実行可能なチェックポイント計画
+├── execution-evidence/  ← 実行成果物・テスト・ログ
 ├── scripts/
 │   ├── evaluate.py     ← Python3 自己評価スクリプト（標準ライブラリのみ）
 │   └── progression_gate.py ← 未完了項目・実行証拠の停滞ゲート
+│   ├── progression_runner.py ← チェックポイント実行オーケストレータ
+│   └── run_phase_2_1.py ← 2.1進化的コード探索Executor
 ├── evals/              ← スキル単位の品質保証（Schmid: Don't Ship Skills Without Evals）
 │   ├── README.md       ← テスト定義の書き方・使い方
 │   ├── run_evals.py    ← 評価ハーネス（YAMLテスト読込・regex判定・アブレーション）
