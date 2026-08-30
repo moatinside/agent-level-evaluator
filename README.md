@@ -81,8 +81,11 @@ agent-level-evaluator/
 ├── AGENTS.md           ← エージェントが自動ロードするメインの評価手順
 ├── FRAMEWORK.md        ← Level 1-9 の定義と各レベルの解説
 ├── CHECKPOINTS.md      ← Phase 0-3 のチェックポイントテンプレート
+├── docs/
+│   └── autonomous-progression-protocol.md ← 評価から実行へ遷移する必須プロトコル
 ├── scripts/
-│   └── evaluate.py     ← Python3 自己評価スクリプト（標準ライブラリのみ）
+│   ├── evaluate.py     ← Python3 自己評価スクリプト（標準ライブラリのみ）
+│   └── progression_gate.py ← 未完了項目・実行証拠の停滞ゲート
 ├── evals/              ← スキル単位の品質保証（Schmid: Don't Ship Skills Without Evals）
 │   ├── README.md       ← テスト定義の書き方・使い方
 │   ├── run_evals.py    ← 評価ハーネス（YAMLテスト読込・regex判定・アブレーション）
@@ -115,8 +118,11 @@ python3 evals/run_evals.py --ablate   # アブレーション（スキル有無�
 ## 使い方
 
 1. **自己評価**: エージェントに「このリポジトリで自分のレベルを評価して」と指示
-2. **レベルアップ**: CHECKPOINTS.md の各Phaseを消化して次のレベルを目指す
-3. **定期評価**: evaluate.py をcron等で定期実行し、進捗をトラッキング
+2. **次の実行対象を特定**: `python3 scripts/progression_gate.py`
+3. **レベルアップ**: `docs/autonomous-progression-protocol.md` に従い、計画→実行→検証まで行う
+4. **定期評価**: evaluate.py をcron等で定期実行し、進捗をトラッキング
+
+評価結果を報告するだけでは、レベルアップとはみなしません。実行可能な成果物、合格テスト、実行ログが揃って初めてチェックポイントを完了扱いにします。
 
 ## License
 
