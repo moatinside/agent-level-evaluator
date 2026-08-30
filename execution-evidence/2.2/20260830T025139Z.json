@@ -1,0 +1,63 @@
+{
+  "checkpoint": "2.2",
+  "experiment": "deterministic-novelty-baseline",
+  "status": "passed",
+  "method": "token-set-jaccard",
+  "threshold": 0.25,
+  "cases": [
+    {
+      "id": "similar-1",
+      "idea": "automatically validate deployment configuration and detect configuration errors",
+      "label": "existing",
+      "max_similarity": 0.3,
+      "novelty_score": 0.7,
+      "predicted": "existing",
+      "correct": true
+    },
+    {
+      "id": "similar-2",
+      "idea": "detect deployment configuration mistakes using automated validation",
+      "label": "existing",
+      "max_similarity": 0.4444444444444444,
+      "novelty_score": 0.5555555555555556,
+      "predicted": "existing",
+      "correct": true
+    },
+    {
+      "id": "novel-1",
+      "idea": "optimize evacuation shelter power allocation using weather forecasts",
+      "label": "novel",
+      "max_similarity": 0.0,
+      "novelty_score": 1.0,
+      "predicted": "novel",
+      "correct": true
+    },
+    {
+      "id": "novel-2",
+      "idea": "discover new battery chemistry through molecular simulation",
+      "label": "novel",
+      "max_similarity": 0.0,
+      "novelty_score": 1.0,
+      "predicted": "novel",
+      "correct": true
+    },
+    {
+      "id": "similar-3",
+      "idea": "automated checks for deployment settings and configuration failures",
+      "label": "existing",
+      "max_similarity": 0.5,
+      "novelty_score": 0.5,
+      "predicted": "existing",
+      "correct": true
+    }
+  ],
+  "accuracy": 1.0,
+  "acceptance": {
+    "separates_similar_and_novel": true,
+    "accuracy_at_least_80_percent": true,
+    "deterministic": true
+  },
+  "executed_at": "2026-08-30T02:51:39.964899+00:00",
+  "executed_by": "scripts/progression_runner.py",
+  "evidence_path": "execution-evidence/2.2/20260830T025139Z.json"
+}
