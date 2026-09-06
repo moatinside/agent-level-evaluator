@@ -31,7 +31,8 @@
           "exit_code": {"type": "integer"},
           "pass_count": {"type": "integer", "minimum": 0},
           "fail_count": {"type": "integer", "minimum": 0},
-          "artifact_ref": {"type": "string", "pattern": "^artifact:sha256:[a-f0-9]{64}$"}
+          "artifact_ref": {"type": "string", "pattern": "^artifact:sha256:[a-f0-9]{64}$"},
+          "artifact_verified": {"const": true}
         },
         "additionalProperties": false
       }

@@ -35,13 +35,17 @@ def validate(payload: Any) -> dict[str, Any]:
         if condition.get("required") is True:
             required[cid] = ctype
 
+    if not required:
+        return {"status": "inconclusive", "complete": False, "reason": "at least one required condition is needed"}
+
+    declared = set(required)
     by_id: dict[str, dict[str, Any]] = {}
     for item in evidence:
         if not isinstance(item, dict):
             return {"status": "inconclusive", "complete": False, "reason": "evidence item must be an object"}
         cid = item.get("condition_id")
-        if not isinstance(cid, str) or cid in by_id or item.get("verifier") != "deterministic":
-            return {"status": "inconclusive", "complete": False, "reason": "invalid or duplicate evidence"}
+        if not isinstance(cid, str) or cid not in declared or cid in by_id or item.get("verifier") != "deterministic":
+            return {"status": "inconclusive", "complete": False, "reason": "invalid, undeclared, or duplicate evidence"}
         if item.get("status") not in {"verified", "failed"}:
             return {"status": "inconclusive", "complete": False, "reason": "invalid evidence status"}
         by_id[cid] = item
@@ -59,8 +63,8 @@ def validate(payload: Any) -> dict[str, Any]:
             return {"status": "blocked", "complete": False, "reason": "command exit code was not zero", "failed": [cid]}
         if ctype == "tests_pass" and (item.get("fail_count") != 0 or not isinstance(item.get("pass_count"), int)):
             return {"status": "blocked", "complete": False, "reason": "test evidence is not clean", "failed": [cid]}
-        if ctype == "artifact_present" and not isinstance(item.get("artifact_ref"), str):
-            return {"status": "inconclusive", "complete": False, "reason": "artifact reference missing", "missing": [cid]}
+        if ctype == "artifact_present" and (not isinstance(item.get("artifact_ref"), str) or item.get("artifact_verified") is not True):
+            return {"status": "inconclusive", "complete": False, "reason": "artifact reference or verification missing", "missing": [cid]}
     return {"status": "passed", "complete": True, "task_id": task_id, "verified_conditions": sorted(required)}
 
 

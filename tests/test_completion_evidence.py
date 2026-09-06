@@ -16,7 +16,7 @@ class CompletionEvidenceTests(unittest.TestCase):
             ],
             "evidence": [
                 {"condition_id": "tests", "status": "verified", "verifier": "deterministic", "pass_count": 3, "fail_count": 0},
-                {"condition_id": "artifact", "status": "verified", "verifier": "deterministic", "artifact_ref": "artifact:sha256:" + "a" * 64},
+                {"condition_id": "artifact", "status": "verified", "verifier": "deterministic", "artifact_ref": "artifact:sha256:" + "a" * 64, "artifact_verified": True},
             ],
         }
 
@@ -53,7 +53,26 @@ class CompletionEvidenceTests(unittest.TestCase):
         self.assertEqual(result["status"], "inconclusive")
         self.assertFalse(result["complete"])
 
-    def test_failed_judge_cannot_turn_into_pass(self):
+    def test_no_required_condition_is_inconclusive(self):
+        payload = self.base()
+        for condition in payload["conditions"]:
+            condition["required"] = False
+        result = validate(payload)
+        self.assertEqual(result["status"], "inconclusive")
+
+    def test_undeclared_evidence_is_inconclusive(self):
+        payload = self.base()
+        payload["evidence"].append({"condition_id": "unknown", "status": "verified", "verifier": "deterministic"})
+        result = validate(payload)
+        self.assertEqual(result["status"], "inconclusive")
+
+    def test_unverified_artifact_is_inconclusive(self):
+        payload = self.base()
+        payload["evidence"][1]["artifact_verified"] = False
+        result = validate(payload)
+        self.assertEqual(result["status"], "inconclusive")
+
+    def test_failed_evidence_cannot_turn_into_pass(self):
         payload = self.base()
         payload["evidence"][0]["status"] = "failed"
         payload["evidence"][1]["status"] = "failed"
