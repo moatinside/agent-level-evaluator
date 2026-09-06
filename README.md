@@ -44,6 +44,18 @@ cd agent-level-evaluator
 
 詳細: [FRAMEWORK.md](FRAMEWORK.md)
 
+## 評価結果の読み方
+
+評価は、次の3層を分けて解釈します。静的評価のPASSやスコアは、実運用Levelの直接的な証明ではありません。
+
+- **静的構成評価**: Skill、ツール、設定、評価器の存在と構造健全性
+- **振る舞い評価**: 固定シナリオで回答・仮想アクション・tool traceが契約を満たすか
+- **実運用Level評価**: 継続的な実行、改善前後の効果、失敗回復、反復性の証拠
+
+Level 7は、改善余地の自律的な発見から改善実行、効果測定、失敗回復、反復までが実運用で確認できた場合に限り候補とします。Skillやcronの存在、Phaseの完了だけではLevel 7確定とはしません。
+
+詳細: [docs/evaluation-model.md](docs/evaluation-model.md)
+
 ## 振る舞い評価（provider / model / Agent 実装の比較）
 
 既存の `evals/run_evals.py` は SKILL.md の**静的構造 lint**です。LLMを呼ばないため、provider/model差は測りません。
@@ -124,13 +136,13 @@ python3 evals/run_evals.py --ablate   # アブレーション（スキル有無�
 
 1. **自己評価**: エージェントに「このリポジトリで自分のレベルを評価して」と指示
 2. **次の実行対象を特定**: `python3 scripts/progression_gate.py`
-3. **レベルアップ**: `python3 scripts/progression_runner.py --checkpoint auto` で、実行器が登録された最初の未完了項目を起動する
+3. **検証工程を進める**: `python3 scripts/progression_runner.py --checkpoint auto` で、実行器が登録された最初の未完了項目を起動する
 4. **定期評価**: evaluate.py をcron等で定期実行し、進捗をトラッキング
 
 評価結果を報告するだけでは、レベルアップとはみなしません。実行可能な成果物、合格テスト、実行ログが揃って初めてチェックポイントを完了扱いにします。
 詳細な状態遷移と承認境界は [autonomous-progression-protocol.md](docs/autonomous-progression-protocol.md) を参照してください。
 
-Phase 2.3は日次実行で状態を蓄積し、実時間7日・新規結果3件以上を満たすまで完了扱いにしません。
+Phase 2.3は日次実行で継続実行の状態を蓄積します。実時間7日・新規結果3件以上はPhaseの完了条件であり、Level 7の確定や次Levelへの移行条件とは別です。
 
 ## License
 
