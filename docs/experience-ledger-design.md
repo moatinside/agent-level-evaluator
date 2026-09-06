@@ -19,7 +19,11 @@ execution metadata + outcome + evidence reference
 ## Boundaries
 
 - Raw prompts, responses, transcripts, and tool arguments are not stored.
-- A lesson is represented by a content hash, not by its raw text.
+- A lesson is represented by a content hash plus a bounded, redacted summary
+  so approved retrieval can provide a reusable hint without retaining raw
+  execution text.
+- Approval requires an actor reference, reason reference, and timestamp.
+- Duplicate `experience_id` values are rejected.
 - `pending`, `rejected`, and `obsolete` records remain auditable but are not
   returned by retrieval.
 - Retrieval is constrained to the same `task_ref` and `configuration_id`.

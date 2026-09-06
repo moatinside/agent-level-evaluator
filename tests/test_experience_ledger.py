@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.experience_ledger import append_record, build_record, retrieve, validate_record
+from scripts.experience_ledger import approve_record, append_record, build_record, retrieve, validate_record
 
 
 class ExperienceLedgerTests(unittest.TestCase):
@@ -29,6 +29,12 @@ class ExperienceLedgerTests(unittest.TestCase):
         self.assertTrue(record["lesson_ref"].startswith("lesson:sha256:"))
         self.assertEqual(record["approval"], "pending")
         self.assertEqual(validate_record(record)["status"], "valid")
+        self.assertNotIn("secret-value", record["lesson_summary"])
+
+    def test_approved_record_requires_auditable_approval_fields(self):
+        record = build_record(self.payload())
+        record["approval"] = "approved"
+        self.assertEqual(validate_record(record)["status"], "inconclusive")
 
     def test_invalid_outcome_cannot_be_recorded(self):
         with self.assertRaises(ValueError):
@@ -44,9 +50,11 @@ class ExperienceLedgerTests(unittest.TestCase):
             pending = build_record(self.payload())
             append_record(ledger, pending)
             self.assertEqual(retrieve(ledger, "task:response-validation", "config:hermes-v1"), [])
-            approved = {**pending, "approval": "approved"}
-            append_record(ledger, approved)
-            other = {**approved, "experience_id": "experience:run-002", "configuration_id": "config:other"}
+            approved = approve_record(ledger, pending["experience_id"], "person:reviewer-1", "reason:accepted-1", "2026-09-06T01:00:00Z")
+            self.assertEqual(approved["approval"], "approved")
+            with self.assertRaises(ValueError):
+                approve_record(ledger, pending["experience_id"], "person:reviewer-1", "reason:accepted-1", "2026-09-06T01:00:00Z")
+            other = build_record(self.payload(experience_id="experience:run-002", configuration_id="config:other"))
             append_record(ledger, other)
             found = retrieve(ledger, "task:response-validation", "config:hermes-v1")
             self.assertEqual(len(found), 1)

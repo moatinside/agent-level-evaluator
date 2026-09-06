@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["schema_version", "experience_id", "task_ref", "configuration_id", "outcome", "evidence_refs", "lesson_ref", "approval"],
+  "required": ["schema_version", "experience_id", "task_ref", "configuration_id", "outcome", "failure_class", "evidence_refs", "lesson_ref", "lesson_summary", "approval", "approval_actor_ref", "approval_reason_ref", "approved_at", "source", "created_at"],
   "properties": {
     "schema_version": {"const": 1},
     "experience_id": {"type": "string", "pattern": "^experience:[a-zA-Z0-9._-]+$"},
@@ -11,7 +11,11 @@
     "failure_class": {"enum": ["none", "validation", "execution", "timeout", "malformed", "dependency", "unknown"]},
     "evidence_refs": {"type": "array", "items": {"type": "string", "minLength": 1}},
     "lesson_ref": {"type": "string", "pattern": "^lesson:sha256:[a-f0-9]{64}$"},
+    "lesson_summary": {"type": "string", "minLength": 1, "maxLength": 280},
     "approval": {"enum": ["pending", "approved", "rejected", "obsolete"]},
+    "approval_actor_ref": {"type": ["string", "null"]},
+    "approval_reason_ref": {"type": ["string", "null"]},
+    "approved_at": {"type": ["string", "null"]},
     "source": {"enum": ["deterministic", "human_review"]},
     "created_at": {"type": "string", "minLength": 1}
   },
