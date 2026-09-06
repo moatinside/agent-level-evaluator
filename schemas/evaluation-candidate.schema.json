@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "candidate_id", "status", "source_ref", "prompt_ref", "sanitized", "requires_human_approval", "criteria", "allowed_tools"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "candidate_id": {"type": "string", "pattern": "^candidate:[a-f0-9]{64}$"},
+    "status": {"enum": ["candidate", "approved", "rejected", "retired"]},
+    "source_ref": {"type": "string", "pattern": "^trace:sha256:[a-f0-9]{64}$"},
+    "prompt_ref": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "outcome_ref": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "sanitized": {"const": true},
+    "requires_human_approval": {"const": true},
+    "criteria": {"type": "array", "items": {"type": "string"}},
+    "allowed_tools": {"type": "array", "items": {"type": "string"}},
+    "approved_by": {"type": ["string", "null"]},
+    "decision_reason": {"type": ["string", "null"]}
+  },
+  "additionalProperties": false
+}
