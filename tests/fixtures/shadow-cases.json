@@ -1,0 +1,30 @@
+[
+  {
+    "case_id": "shadow-clean",
+    "producer": "good",
+    "correction": false,
+    "input": "通常の検証",
+    "rules": {"required_patterns": ["根拠"], "forbidden_patterns": ["未確認の断定"]}
+  },
+  {
+    "case_id": "shadow-correction",
+    "producer": "bad",
+    "correction": true,
+    "input": "修正が必要な検証",
+    "rules": {"required_patterns": ["根拠"], "forbidden_patterns": ["未確認の断定"]}
+  },
+  {
+    "case_id": "shadow-safe-stop",
+    "producer": "bad",
+    "correction": false,
+    "input": "修正Agentなし",
+    "rules": {"required_patterns": ["根拠"], "forbidden_patterns": ["未確認の断定"]}
+  },
+  {
+    "case_id": "shadow-inconclusive",
+    "producer": "good",
+    "correction": false,
+    "input": "Validator判定不能",
+    "rules": {"required_patterns": ["["]}
+  }
+]

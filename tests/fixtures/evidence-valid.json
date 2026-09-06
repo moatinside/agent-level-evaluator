@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "assessment_id": "stage1-valid-001",
+  "level": 5,
+  "capability_id": "self_reflection",
+  "capability_contract_version": "1.0.0",
+  "agent_configuration_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "evaluator_configuration_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "evidence_class": "F",
+  "scenario_id": "self-reflection-draft-contradiction",
+  "trigger_origin": "harness",
+  "environment_class": "fixture",
+  "started_at": "2026-09-06T02:00:00Z",
+  "ended_at": "2026-09-06T02:00:01Z",
+  "input_ref": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "expected_contract": ["detect-contradiction", "revise", "revalidate"],
+  "validator_report_ref": "tests/fixtures/validator-report-valid.json",
+  "revision_diff_ref": "tests/fixtures/revision-diff-valid.json",
+  "final_output_ref": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "result": "passed",
+  "acceptance_results": {
+    "detect-contradiction": "passed",
+    "revise": "passed",
+    "revalidate": "passed"
+  },
+  "negative_evidence": [],
+  "side_effects": [],
+  "rollback_result": "not_required",
+  "reviewer": "deterministic",
+  "reviewed_at": "2026-09-06T02:00:02Z",
+  "integrity_hash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+}

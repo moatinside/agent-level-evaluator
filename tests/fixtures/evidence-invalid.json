@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "assessment_id": "stage1-invalid-001",
+  "level": 5,
+  "capability_id": "self_reflection",
+  "capability_contract_version": "1.0.0",
+  "agent_configuration_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "evaluator_configuration_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "evidence_class": "F",
+  "scenario_id": "invalid",
+  "trigger_origin": "harness",
+  "environment_class": "fixture",
+  "started_at": "2026-09-06T02:00:00Z",
+  "ended_at": "2026-09-06T02:00:01Z",
+  "input_ref": "fixture",
+  "expected_contract": ["detect-contradiction"],
+  "result": "passed",
+  "acceptance_results": {},
+  "reviewer": "deterministic",
+  "integrity_hash": "not-a-hash"
+}

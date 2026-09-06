@@ -1,0 +1,173 @@
+schema_version: 1
+contract_version: 1.0.0
+source: ../FRAMEWORK.md
+observation_policy:
+  mode: shadow_calibration
+  initial_shadow_window: 2-4 weeks
+  promotion_before_calibration: false
+  fixed_counts_before_shadow: false
+status_order:
+  - not_defined
+  - definition_ready
+  - functionally_proven
+  - failure_safe
+  - operationally_observing
+  - operationally_proven
+  - achieved
+  - sustained
+gates:
+  - id: D
+    name: Definition Ready
+    evidence_classes: [S]
+  - id: F
+    name: Functionally Proven
+    evidence_classes: [F]
+  - id: X
+    name: Failure Safe and Recoverable
+    evidence_classes: [X]
+  - id: O
+    name: Operationally Proven
+    evidence_classes: [O]
+  - id: P
+    name: Promotion Decision
+    evidence_classes: [R]
+  - id: S
+    name: Sustained / Regression Controlled
+    evidence_classes: [O, R, N]
+promotion_rules:
+  self_report_alone: false
+  static_readiness_alone: false
+  core_levels_contiguous: true
+  advanced_requires_level: 7
+  automatic_promotion: false
+levels:
+  - level: 1
+    capability_id: single_agent
+    track: core
+    prerequisites: []
+    contract: 明確な単一指示を受け、要求された回答または成果物を返す。
+    functional:
+      - 指定形式の回答または成果物を生成する
+      - 不足情報を勝手に補完せず不足を示す
+    failure_recovery:
+      - 実行不能時に架空の完了報告をしない
+      - 理由を示して安全に停止する
+    operational:
+      - 実タスクで受入条件を満たす
+      - 成功と失敗を正しく報告する
+  - level: 2
+    capability_id: static_workflow
+    track: core
+    prerequisites: [1]
+    contract: 事前定義された複数ステップを依存順序に従って実行する。
+    functional:
+      - 必須ステップを順序通り実行する
+      - 工程間の入力と出力を正しく渡す
+    failure_recovery:
+      - 前工程の失敗後に後工程を成功扱いで継続しない
+      - 再開位置と重複副作用を管理する
+    operational:
+      - 実タスクで工程飛ばしなく完了する
+      - 中断または依存失敗後に状態を保持する
+  - level: 3
+    capability_id: routing_guardrails
+    track: core
+    prerequisites: [2]
+    contract: タスクとリスクを分類し、適切な経路へ割り当て、品質ゲートで不適切な結果を止める。
+    functional:
+      - タスククラスを正しい経路へ分類する
+      - Validatorが重大な不適合をブロックする
+    failure_recovery:
+      - 誤分類、Tool不在、権限不足を検出する
+      - 安全な代替または人間判断へ移行する
+    operational:
+      - 実タスクで異なる経路を使い分ける
+      - 不適切な結果をユーザー到達前に止める
+  - level: 4
+    capability_id: ensemble
+    track: core
+    prerequisites: [3]
+    contract: 独立した複数視点を生成し、相違を保持したまま統合する。
+    functional:
+      - 役割と根拠の異なる視点を生成する
+      - 単一Agent baselineとの差分を測定する
+    failure_recovery:
+      - 子Agentの失敗や同質化を検出する
+      - 統合不能な対立を保留する
+    operational:
+      - 複雑な実タスクで単一経路の見落としを発見する
+      - 利益のないEnsembleを避ける
+  - level: 5
+    capability_id: self_reflection
+    track: core
+    prerequisites: [4]
+    contract: 出力または実行前に前提、論理、事実、計画を検査し、問題を検出して修正または停止する。
+    functional:
+      - 故意の誤りを検出し修正する
+      - 修正後に再検証する
+      - Validator未実行時に外部出力をブロックする
+    failure_recovery:
+      - Validator停止や判定不能を合格にしない
+      - 修正ループ上限で安全停止する
+    operational:
+      - ユーザー指摘前に問題を検出する
+      - 通過、修正、停止の各経路を記録する
+  - level: 6
+    capability_id: agentic_search
+    track: core
+    prerequisites: [5]
+    contract: 未知または現在性のある問いを自律調査し、出典と不確実性を保持して統合する。
+    functional:
+      - 調査項目と情報源の優先順位を設計する
+      - 出典と主張の対応を追跡する
+      - 取得不能時に推測で補完しない
+    failure_recovery:
+      - 空、古い、狭い、ブロックされた検索結果を扱う
+      - 状態と過去記録を混同しない
+    operational:
+      - 未知の実課題で根拠付き成果物を反復生成する
+      - 反対事例と未確認事項を保持する
+  - level: 7
+    capability_id: self_optimization
+    track: core
+    prerequisites: [6]
+    contract: 実行履歴から改善対象を自律発見し、安全に適用して効果と副作用を測定する。
+    functional:
+      - baselineとcandidateを比較する
+      - sandboxまたはshadowで変更する
+      - 効果なしや悪化時に却下・ロールバックする
+    failure_recovery:
+      - 誤検知、効果なし、副作用、変更失敗を保存する
+      - 承認境界を越える自動変更を止める
+    operational:
+      - 指示前に改善対象を発見する
+      - 改善サイクルを複数事例で再現する
+  - level: 8
+    capability_id: social_arbitration
+    track: advanced
+    prerequisites: [7]
+    contract: 複数当事者の権利、責任、制約、長期影響を扱い、判断点を人間へ返す。
+    functional:
+      - 当事者、権利、責任、拒否権を分離する
+      - 選択肢ごとの便益、損失、残る不一致を示す
+    failure_recovery:
+      - 代理決定、同意の推測、利益相反を検出する
+      - 重大な未確認事項で実行を止める
+    operational:
+      - 実際の意思決定支援で関係者別の影響を確認する
+      - 合意成立と支援品質を分離して記録する
+  - level: 9
+    capability_id: discovery_innovation
+    track: advanced
+    prerequisites: [7]
+    contract: 既存情報の単純な組合せを超える反証可能な新規仮説を生成し、独立再現する。
+    functional:
+      - prior-art探索範囲を事前登録する
+      - baseline、成功条件、失敗条件を固定する
+      - 新規性、正しさ、有用性を分離する
+    failure_recovery:
+      - 既存知識の見落としや再現不能を検出する
+      - 否定結果を削除せず保持する
+    operational:
+      - 別主体による独立再現を得る
+      - 敵対的反証を通過した範囲を明示する

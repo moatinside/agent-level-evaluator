@@ -823,3 +823,78 @@ Decision: achieved | observing | under_review | regressed
 この設計を採用した場合でも、設計書を書いただけでは現在Levelを変更しない。現在Levelを再判定するには、Stage 1〜3の実装と機能テスト、その後のStage 4運用観測が必要である。
 
 現行の「Level 6相当」という記録は履歴として保持するが、新ゲート基準では再評価前の暫定記録として扱う。新基準によるOperational Levelは、証拠移行・不足確認・独立レビューが終わるまで `unassessed` とする。
+
+## 21. Stage 1実装状況（2026-09-06）
+
+Stage 1のうち、Level契約と証拠Schemaの機械可読化を実装した。
+
+- `contracts/level-contracts.yaml`
+  - Level 1〜7の累積core契約
+  - Level 8・9の独立advanced契約
+  - Gate D/F/X/O/P/S
+  - shadow calibration、Promotion、構成変更ルール
+- `schemas/evidence-record.schema.json`
+  - 証拠クラス、Level、構成ID、結果、Reviewer、hashのSchema
+  - F/O証拠の条件付き必須項目
+- `scripts/validate_stage1.py`
+  - 契約、Schema、証拠レコードの決定的検証
+- `tests/test_stage1_contracts.py`
+  - 正常系、異常系、契約完全性、Schema JSONの回帰テスト
+
+実走で、契約・Schema検証、正常証拠の受入、異常証拠の拒否、Stage 1テスト、既存behavior replayを確認した。Stage 2のうちbuffered Validatorの最小実装は後続節で実装済みだが、Level別behavior fixture、Operational Evidence Collector、Promotion Gateの実Agent接続は未着手であり、現在Levelは変更しない。
+
+## 22. Stage 2実装状況（2026-09-06）
+
+Level 5のValidator機構の最小実装を追加した。
+
+- `scripts/response_validation.py`
+  - buffer済み回答の必須・禁止パターン検証
+  - 修正候補の再検証
+  - 判定不能、最大反復、修正候補なしの安全停止
+- `scripts/validated_agent_runner.py`
+  - JSON stdin/stdoutのbuffered validation runner
+  - 合格回答だけを`delivery_allowed: true`として返す
+  - 外部送信は行わない
+- `tests/test_response_validation.py`
+  - 正常通過
+  - 不合格停止
+  - 修正後再検証
+  - Validatorルール不正
+  - CLI E2E
+
+正常系、修正系、停止系、判定不能系を実走し、12件のテストが合格した。これはValidator機構の機能証明であり、実Agentがユーザー指摘前に問題を検出した運用証明ではない。実Agentの生成経路への接続、Hermesのpre-delivery policy、Operational Shadow Collector、Gate O/Pへの接続は未実装である。
+
+### 22.1 修正Agent接続の追加実装
+
+修正候補を固定fixtureとして直接渡す方式をやめ、`scripts/validated_command_runner.py`を追加した。
+
+```text
+producer command
+  → buffered draft
+  → deterministic Validator
+  → correction-agent command
+  → revalidation
+  → validated response または safe stop
+```
+
+生成Agentと修正Agentは別プロセスで、JSON stdin/stdout契約を持つ。修正Agentが失敗、欠落、不正形式、タイムアウトした場合は、未検証回答を返さず`inconclusive`または`blocked`とする。コマンドは信頼済みのEvaluator設定からのみ与え、タスクpayloadから任意コマンドを受け取らない。
+
+正常な生成、修正後の再検証、修正Agent不在、修正Agent不在ファイルを含むE2Eを実行し、Stage 1を含む16件のテストが合格した。これはEvaluator側の生成器・修正器接続の機能証明であり、Hermes Gatewayの実配信接続や実Agentの運用証明ではない。
+
+Hermesの実配信接続は、別プロジェクト`~/.hermes/hermes-agent`のAgent coreとGateway streaming境界に関係する。未検証のままこのリポジトリから変更しない。Strict validationではstream deltaを先に外部表示しないbuffered deliveryが必要である。
+
+### 22.2 Operational Evidence Collector
+
+`scripts/collect_operational_evidence.py`を追加した。Collectorは`validated_command_runner.py`の実行結果と入力メタデータを受け取り、metadata-firstのEvidence recordをJSONL ledgerへ追記する。
+
+保存するものは、実行ID、入力ハッシュ、Validatorの判定、反復回数、修正実行回数、delivery許可、停止理由、証跡参照、integrity hashである。回答本文、修正本文、最終回答本文は保存しない。`blocked`／`inconclusive`／`failed`はNegative evidenceとして記録する。
+
+Collectorのfixture E2Eでは、正常系・修正系・安全停止系・JSONL追記を実行し、Evidence recordを既存のStage 1契約で検証した。全テストは19件で合格した。ただし、これはCollectorとEvaluator内の機能証明であり、実ユーザーの通常回答を一定期間観測した運用実績ではない。実運用のGate Oには、Hermes接続後のshadow観測と観測期間・母数・誤検知・見逃しの確定が別途必要である。
+
+### 22.3 Shadow batch runner
+
+複数ケースを同じEvaluator経路へ通し、Collectorへ追記する`scripts/run_shadow_batch.py`を追加した。ケースファイルには識別子、入力、検証ルール、信頼済みproducer名、修正Agentを使うかどうかだけを置き、実行コマンドはCLI引数で固定する。これにより、ケースpayloadから任意コマンドを実行しない。
+
+fixtureでは、正常系、修正後合格、安全停止、Validator判定不能を各1件実行した。集計結果は`total=4 / passed=2 / blocked=1 / inconclusive=1 / correction_runs=1 / safe_stops=2`で、全4件をO EvidenceとしてJSONLへ追記し、各recordをStage 1契約で検証した。全テストは20件で合格した。
+
+この結果はshadow runnerの機能証明であり、実ユーザーの回答分布・誤検知率・見逃し率を示すものではない。Gate Oの判定には、Hermesの実回答経路へ接続した後の継続観測が必要である。

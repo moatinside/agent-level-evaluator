@@ -1,0 +1,171 @@
+{
+  "schema_version": 1,
+  "reclassification_version": "1.0.0",
+  "created_at": "2026-09-06T03:00:44.618598+00:00",
+  "source_root": "/Users/yokapro/Developer/agent-level-evaluator",
+  "source_phase": "2.3",
+  "legacy_phase_status": "passed",
+  "legacy_phase_completion": true,
+  "promotion_eligible": false,
+  "operational_level_impact": {
+    "level_2": "candidate_evidence_only",
+    "level_5": "not_proven",
+    "level_6": "not_proven",
+    "level_7": "not_proven"
+  },
+  "summary": {
+    "run_count": 8,
+    "novel_run_count": 7,
+    "duplicate_run_count": 1,
+    "predeclared_candidate_count": 7
+  },
+  "records": [
+    {
+      "source": "/Users/yokapro/Developer/agent-level-evaluator/execution-evidence/2.3/runs/2026-08-30-3fc37c188097.json",
+      "date": "2026-08-30",
+      "candidate": "optimize evacuation shelter power allocation using weather forecasts",
+      "evidence_classes": [
+        "O"
+      ],
+      "phase_capability": "scheduled_phase_executor",
+      "level_capability": "level_2_workflow_candidate",
+      "novel_claim": true,
+      "verifiable_claim": true,
+      "novelty_is_independent": false,
+      "notes": [
+        "The run proves scheduled executor activity, not autonomous Agent behavior.",
+        "The candidate is evaluated by the phase script's deterministic history comparison.",
+        "verifiable=true is a script-produced claim, not independent verification."
+      ]
+    },
+    {
+      "source": "/Users/yokapro/Developer/agent-level-evaluator/execution-evidence/2.3/runs/2026-08-31-31b3a55be629.json",
+      "date": "2026-08-31",
+      "candidate": "predict network maintenance windows from incident timelines",
+      "evidence_classes": [
+        "O"
+      ],
+      "phase_capability": "scheduled_phase_executor",
+      "level_capability": "level_2_workflow_candidate",
+      "novel_claim": true,
+      "verifiable_claim": true,
+      "novelty_is_independent": false,
+      "notes": [
+        "The run proves scheduled executor activity, not autonomous Agent behavior.",
+        "The candidate is evaluated by the phase script's deterministic history comparison.",
+        "verifiable=true is a script-produced claim, not independent verification."
+      ]
+    },
+    {
+      "source": "/Users/yokapro/Developer/agent-level-evaluator/execution-evidence/2.3/runs/2026-09-01-1ffd988cadcc.json",
+      "date": "2026-09-01",
+      "candidate": "prioritize validator alerts using packet loss and latency trends",
+      "evidence_classes": [
+        "O"
+      ],
+      "phase_capability": "scheduled_phase_executor",
+      "level_capability": "level_2_workflow_candidate",
+      "novel_claim": true,
+      "verifiable_claim": true,
+      "novelty_is_independent": false,
+      "notes": [
+        "The run proves scheduled executor activity, not autonomous Agent behavior.",
+        "The candidate is evaluated by the phase script's deterministic history comparison.",
+        "verifiable=true is a script-produced claim, not independent verification."
+      ]
+    },
+    {
+      "source": "/Users/yokapro/Developer/agent-level-evaluator/execution-evidence/2.3/runs/2026-09-02-4d0d19098993.json",
+      "date": "2026-09-02",
+      "candidate": "classify configuration drift before deployment approval",
+      "evidence_classes": [
+        "O"
+      ],
+      "phase_capability": "scheduled_phase_executor",
+      "level_capability": "level_2_workflow_candidate",
+      "novel_claim": true,
+      "verifiable_claim": true,
+      "novelty_is_independent": false,
+      "notes": [
+        "The run proves scheduled executor activity, not autonomous Agent behavior.",
+        "The candidate is evaluated by the phase script's deterministic history comparison.",
+        "verifiable=true is a script-produced claim, not independent verification."
+      ]
+    },
+    {
+      "source": "/Users/yokapro/Developer/agent-level-evaluator/execution-evidence/2.3/runs/2026-09-03-bebb92e03081.json",
+      "date": "2026-09-03",
+      "candidate": "estimate battery storage demand from regional outage patterns",
+      "evidence_classes": [
+        "O"
+      ],
+      "phase_capability": "scheduled_phase_executor",
+      "level_capability": "level_2_workflow_candidate",
+      "novel_claim": true,
+      "verifiable_claim": true,
+      "novelty_is_independent": false,
+      "notes": [
+        "The run proves scheduled executor activity, not autonomous Agent behavior.",
+        "The candidate is evaluated by the phase script's deterministic history comparison.",
+        "verifiable=true is a script-produced claim, not independent verification."
+      ]
+    },
+    {
+      "source": "/Users/yokapro/Developer/agent-level-evaluator/execution-evidence/2.3/runs/2026-09-04-3067069b6a7d.json",
+      "date": "2026-09-04",
+      "candidate": "detect duplicate operational hypotheses from experiment history",
+      "evidence_classes": [
+        "O"
+      ],
+      "phase_capability": "scheduled_phase_executor",
+      "level_capability": "level_2_workflow_candidate",
+      "novel_claim": true,
+      "verifiable_claim": true,
+      "novelty_is_independent": false,
+      "notes": [
+        "The run proves scheduled executor activity, not autonomous Agent behavior.",
+        "The candidate is evaluated by the phase script's deterministic history comparison.",
+        "verifiable=true is a script-produced claim, not independent verification."
+      ]
+    },
+    {
+      "source": "/Users/yokapro/Developer/agent-level-evaluator/execution-evidence/2.3/runs/2026-09-05-508f922d9b2d.json",
+      "date": "2026-09-05",
+      "candidate": "rank recovery actions by service dependency impact",
+      "evidence_classes": [
+        "O"
+      ],
+      "phase_capability": "scheduled_phase_executor",
+      "level_capability": "level_2_workflow_candidate",
+      "novel_claim": true,
+      "verifiable_claim": true,
+      "novelty_is_independent": false,
+      "notes": [
+        "The run proves scheduled executor activity, not autonomous Agent behavior.",
+        "The candidate is evaluated by the phase script's deterministic history comparison.",
+        "verifiable=true is a script-produced claim, not independent verification."
+      ]
+    },
+    {
+      "source": "/Users/yokapro/Developer/agent-level-evaluator/execution-evidence/2.3/runs/2026-09-06-6c1696e3c95a.json",
+      "date": "2026-09-06",
+      "candidate": "optimize evacuation shelter power allocation using weather forecasts",
+      "evidence_classes": [
+        "O",
+        "N"
+      ],
+      "phase_capability": "scheduled_phase_executor",
+      "level_capability": "level_2_workflow_candidate",
+      "novel_claim": false,
+      "verifiable_claim": true,
+      "novelty_is_independent": false,
+      "notes": [
+        "The run proves scheduled executor activity, not autonomous Agent behavior.",
+        "The candidate is evaluated by the phase script's deterministic history comparison.",
+        "Duplicate/non-novel result is retained as negative evidence.",
+        "verifiable=true is a script-produced claim, not independent verification."
+      ]
+    }
+  ],
+  "decision": "Keep Phase 2.3 history unchanged; do not connect it to Level promotion."
+}
