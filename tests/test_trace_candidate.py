@@ -16,7 +16,7 @@ class TraceCandidateTests(unittest.TestCase):
             "prompt": "Review /Users/yokapro/private.txt token=secret-value",
             "tool_calls": ["read_file", "terminal"],
             "outcome": "https://alice:pw@example.com completed",
-            "criteria": ["tests pass"],
+            "criteria": ["tests pass token=criteria-secret /Users/yokapro/private.txt"],
         }
         candidate = build_candidate(trace)
         rendered = json.dumps(candidate, ensure_ascii=False)

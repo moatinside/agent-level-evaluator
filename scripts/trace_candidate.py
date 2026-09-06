@@ -51,26 +51,50 @@ def build_candidate(trace: Any) -> dict[str, Any]:
     criteria = trace.get("criteria", [])
     if not isinstance(criteria, list) or not all(isinstance(item, str) and item for item in criteria):
         raise ValueError("trace.criteria must be an array of non-empty strings")
+    sanitized_criteria = [sanitize_text(item) for item in criteria]
     sanitized_trace = {
         "prompt": sanitize_text(prompt),
         "tool_calls": tools,
         "outcome": sanitize_text(outcome),
+        "criteria": sanitized_criteria,
     }
     source_hash = hashlib.sha256(canonical(sanitized_trace)).hexdigest()
-    return {
+    candidate = {
         "schema_version": 1,
-        "candidate_id": "candidate:" + hashlib.sha256(canonical({"source": source_hash, "criteria": criteria})).hexdigest(),
+        "candidate_id": "candidate:" + hashlib.sha256(canonical({"source": source_hash, "criteria": sanitized_criteria})).hexdigest(),
         "status": "candidate",
         "source_ref": "trace:sha256:" + source_hash,
         "prompt_ref": ref(sanitize_text(prompt)),
         "outcome_ref": ref(sanitize_text(outcome)),
         "sanitized": True,
         "requires_human_approval": True,
-        "criteria": criteria,
+        "criteria": sanitized_criteria,
         "allowed_tools": sorted(set(tools)),
         "approved_by": None,
         "decision_reason": None,
     }
+    validate_candidate(candidate)
+    return candidate
+
+
+def validate_candidate(candidate: Any) -> None:
+    if not isinstance(candidate, dict):
+        raise ValueError("candidate must be an object")
+    required = {"schema_version", "candidate_id", "status", "source_ref", "prompt_ref", "outcome_ref", "sanitized", "requires_human_approval", "criteria", "allowed_tools", "approved_by", "decision_reason"}
+    if set(candidate) != required or candidate["schema_version"] != 1:
+        raise ValueError("candidate does not match schema fields")
+    if not re.fullmatch(r"candidate:[a-f0-9]{64}", candidate["candidate_id"]):
+        raise ValueError("invalid candidate_id")
+    if candidate["status"] != "candidate" or candidate["sanitized"] is not True or candidate["requires_human_approval"] is not True:
+        raise ValueError("candidate must remain approval-gated")
+    if not re.fullmatch(r"trace:sha256:[a-f0-9]{64}", candidate["source_ref"]):
+        raise ValueError("invalid source_ref")
+    if not all(re.fullmatch(r"sha256:[a-f0-9]{64}", candidate[key]) for key in ("prompt_ref", "outcome_ref")):
+        raise ValueError("invalid content reference")
+    if not isinstance(candidate["criteria"], list) or not all(isinstance(x, str) and x for x in candidate["criteria"]):
+        raise ValueError("invalid criteria")
+    if not isinstance(candidate["allowed_tools"], list) or not all(isinstance(x, str) and x for x in candidate["allowed_tools"]):
+        raise ValueError("invalid allowed_tools")
 
 
 def main() -> int:
