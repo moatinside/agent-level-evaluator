@@ -94,13 +94,30 @@ agent-level-evaluator/
 ├── FRAMEWORK.md        ← Level 1-9 の定義と各レベルの解説
 ├── CHECKPOINTS.md      ← Phase 0-3 のチェックポイントテンプレート
 ├── docs/
-│   └── autonomous-progression-protocol.md ← 評価から実行へ遷移する必須プロトコル
+│   ├── autonomous-progression-protocol.md ← 評価から実行へ遷移する必須プロトコル
+│   ├── level-evidence-gate-design.md ← Level 1〜9の証明・昇格設計
+│   └── decision-log.md ← 設計判断とPhase 2.3評価の記録
+├── contracts/
+│   └── level-contracts.yaml ← Level契約とGateの機械可読定義
+├── schemas/
+│   └── evidence-record.schema.json ← 証拠レコードSchema
+├── tests/
+│   ├── test_stage1_contracts.py ← Stage 1回帰テスト
+│   └── fixtures/ ← 正常／異常証拠fixture
 ├── execution-plans/     ← 実行可能なチェックポイント計画
 ├── execution-evidence/  ← 実行成果物・テスト・ログ
 ├── scripts/
 │   ├── evaluate.py     ← Python3 自己評価スクリプト（標準ライブラリのみ）
 │   └── progression_gate.py ← 未完了項目・実行証拠の停滞ゲート
 │   ├── progression_runner.py ← チェックポイント実行オーケストレータ
+│   └── validate_stage1.py ← Level契約・証拠Schemaの決定的検証
+│   ├── response_validation.py ← Level 5 buffered Validator
+│   ├── validated_agent_runner.py ← 外部送信しないValidator runner
+│   ├── validated_command_runner.py ← 生成Agent／修正Agent接続runner
+│   ├── collect_operational_evidence.py ← metadata-first運用証拠Collector
+│   ├── run_shadow_batch.py ← 複数ケースのshadow実行・集計
+│   ├── reclassify_phase23.py ← Phase 2.3履歴の再分類
+│   └── promotion_gate.py ← 証拠ゲートによる昇格ブロック
 │   └── run_phase_2_1.py ← 2.1進化的コード探索Executor
 │   └── run_phase_2_2.py / run_phase_2_3.py ← 2.2/2.3 Executor
 ├── evals/              ← スキル単位の品質保証（Schmid: Don't Ship Skills Without Evals）
