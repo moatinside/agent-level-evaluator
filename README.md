@@ -92,7 +92,8 @@ python3 evals/run_behavior_evals.py \
 agent-level-evaluator/
 ├── AGENTS.md           ← エージェントが自動ロードするメインの評価手順
 ├── FRAMEWORK.md        ← Level 1-9 の定義と各レベルの解説
-├── CHECKPOINTS.md      ← Phase 0-3 のチェックポイントテンプレート
+├── docs/current-evaluation-architecture.md ← 現行SSOTと移行境界
+├── archive/legacy-phase/ ← 旧Phase資料・Executor（履歴専用）
 ├── docs/
 │   ├── autonomous-progression-protocol.md ← 評価から実行へ遷移する必須プロトコル
 │   ├── level-evidence-gate-design.md ← Level 1〜9の証明・昇格設計
@@ -108,8 +109,8 @@ agent-level-evaluator/
 ├── execution-evidence/  ← 実行成果物・テスト・ログ
 ├── scripts/
 │   ├── evaluate.py     ← Python3 自己評価スクリプト（標準ライブラリのみ）
-│   └── progression_gate.py ← 未完了項目・実行証拠の停滞ゲート
-│   ├── progression_runner.py ← チェックポイント実行オーケストレータ
+│   ├── audit_legacy_pipeline.py ← 旧Phase経路と切替可否の監査
+│   ├── evaluate_current_state.py ← Evidence Gateの読み取り専用評価入口
 │   └── validate_stage1.py ← Level契約・証拠Schemaの決定的検証
 │   ├── response_validation.py ← Level 5 buffered Validator
 │   ├── validated_agent_runner.py ← 外部送信しないValidator runner
@@ -118,8 +119,7 @@ agent-level-evaluator/
 │   ├── run_shadow_batch.py ← 複数ケースのshadow実行・集計
 │   ├── reclassify_phase23.py ← Phase 2.3履歴の再分類
 │   └── promotion_gate.py ← 証拠ゲートによる昇格ブロック
-│   └── run_phase_2_1.py ← 2.1進化的コード探索Executor
-│   └── run_phase_2_2.py / run_phase_2_3.py ← 2.2/2.3 Executor
+
 ├── evals/              ← スキル単位の品質保証（Schmid: Don't Ship Skills Without Evals）
 │   ├── README.md       ← テスト定義の書き方・使い方
 │   ├── run_evals.py    ← 評価ハーネス（YAMLテスト読込・regex判定・アブレーション）
@@ -152,14 +152,14 @@ python3 evals/run_evals.py --ablate   # アブレーション（スキル有無�
 ## 使い方
 
 1. **自己評価**: エージェントに「このリポジトリで自分のレベルを評価して」と指示
-2. **次の実行対象を特定**: `python3 scripts/progression_gate.py`
-3. **検証工程を進める**: `python3 scripts/progression_runner.py --checkpoint auto` で、実行器が登録された最初の未完了項目を起動する
-4. **定期評価**: evaluate.py をcron等で定期実行し、進捗をトラッキング
+2. **現行状態を確認**: `python3 scripts/evaluate_current_state.py`
+3. **移行状態を監査**: `python3 scripts/audit_legacy_pipeline.py --root .`
+4. **定期評価**: Evidence Gateの結果だけをcron等で観測し、Levelを自動昇格しない
 
 評価結果を報告するだけでは、レベルアップとはみなしません。実行可能な成果物、合格テスト、実行ログが揃って初めてチェックポイントを完了扱いにします。
 詳細な状態遷移と承認境界は [autonomous-progression-protocol.md](docs/autonomous-progression-protocol.md) を参照してください。
 
-Phase 2.3は日次実行で継続実行の状態を蓄積します。実時間7日・新規結果3件以上はPhaseの完了条件であり、Level 7の確定や次Levelへの移行条件とは別です。
+旧Phase 2.3は開発実験の履歴として保持します。実時間7日・新規結果数は、Agent Levelの昇格条件ではありません。現行の能力判定はEvidence GateのFunctional / Failure-Recovery / Operational evidenceで行います。
 
 ## License
 

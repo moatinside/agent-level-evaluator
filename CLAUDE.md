@@ -25,8 +25,10 @@ Follow the procedure in `AGENTS.md` Step-by-Step:
    - Dynamic routing (Level 3)
    - Workflow execution (Level 2)
 3. Determine overall level
-4. Read `CHECKPOINTS.md` — identify next milestones
-5. Output evaluation report
+4. Read `docs/current-evaluation-architecture.md` and `contracts/level-contracts.yaml` — identify current evidence gates
+5. Run `python3 scripts/evaluate_current_state.py` — report evidence and migration blockers
+6. Treat legacy Phase files under `archive/legacy-phase/` as historical development records only
+7. Never infer Agent Level promotion from legacy Phase completion
 
 ## Report Format
 

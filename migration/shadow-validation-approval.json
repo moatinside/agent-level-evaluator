@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "approval": "explicit",
+  "approved_by": "local repository owner",
+  "approved_at": "2026-09-08T00:51:23Z",
+  "scope": "agent-level-evaluator-experience current Evidence evaluation入口 and local Hermes cron jobs",
+  "shadow_report": "/tmp/agent-level-migration-shadow.json",
+  "checks": {
+    "legacy_executor_invoked": false,
+    "current_entrypoint_read_only": true,
+    "promotion_not_granted": true,
+    "cron_configuration_backed_up": true,
+    "old_cron_jobs_replaced_without_duplicate_jobs": true
+  },
+  "decision": "Local cron migration may proceed without GitHub Maintainer approval. GitHub PR review and Hosted CI remain separate external concerns.",
+  "rollback": {
+    "backup": "/Users/yokapro/.hermes/cron/jobs.json.pre-agent-level-migration-20260908",
+    "procedure": "Restore the backup and verify both target job records by ID before restarting or reloading the scheduler."
+  }
+}
