@@ -4,17 +4,17 @@
 
 ## 評価手順
 
-### 最重要: 評価後に必ず実行へ遷移する
+### 最重要: 能力評価と開発実験を分離する
 
-このリポジトリは採点表ではなく、次のチェックポイントへ進むための実行計画として使う。
+このリポジトリは、旧Phaseの進捗表をAgent Level判定へ直接接続しない。
+現行の評価入口はEvidence Gateであり、旧Phase資料は履歴・開発実験として扱う。
 
-- 評価で未完了チェックポイントが見つかったら、報告だけで終了しない。
-- `docs/autonomous-progression-protocol.md` を読み、最初の未完了項目の実行計画を作成する。
-- `python3 scripts/progression_gate.py` を実行し、計画・成果物・テスト・ログの不足を確認する。
-- `python3 scripts/progression_runner.py --checkpoint auto` を実行し、実行可能な最初のチェックポイントを起動する。
-- 実行可能なローカル作業はその場で実行する。承認が必要な操作だけを人間に確認する。
-- 設計書・自己申告・ファイルの存在だけでは完了と判定しない。成果物、テスト結果、実行ログが揃った場合だけ `CHECKPOINTS.md` を更新する。
-- 同じチェックポイントが2回連続で未着手なら停滞と判定し、阻害要因または実行計画を出力する。
+- `docs/current-evaluation-architecture.md`を最初に読み、SSOTと移行状態を確認する。
+- `python3 scripts/evaluate_current_state.py`を実行し、現行Evidenceと移行ブロッカーを確認する。
+- Functional / Failure-Recovery / Operational evidenceを分離して扱う。
+- `promotion_gate.py`の結果は昇格候補であり、自動昇格ではない。人間の承認ゲートを必須とする。
+- `archive/legacy-phase/`配下のExecutorやPhase表を現行の実行入口として呼び出さない。
+- 設計書・自己申告・ファイルの存在だけでは能力達成と判定しない。実行成果物、テスト、失敗系、運用証拠を分けて確認する。
 
 ### Step 1: FRAMEWORK.md を読む
 
@@ -55,13 +55,11 @@ Level 1〜9 の定義を読んで、各レベルの要件を理解してくだ�
 | Level 7 + 社会的調停機能 | Level 8 |
 | Level 7 + 新規知識創出機能 | Level 9 |
 
-### Step 4: CHECKPOINTS.md を参照
+### Step 4: Evidence Gateを参照
 
-現在のレベルに応じて、次にクリアすべきチェックポイントを特定してください。
-
-特定しただけで止まらず、最初の未完了チェックポイントを次の実行対象にする。
-Phase移行は、`docs/autonomous-progression-protocol.md` の完了条件と
-`scripts/progression_gate.py` の確認結果に従う。
+`contracts/level-contracts.yaml`、`docs/level-evidence-gate-design.md`、
+`docs/decision-log.md`を参照し、Functional / Failure-Recovery / Operational
+の不足を確認する。旧Phaseの完了状態はLevel昇格の根拠にしない。
 
 ### Step 5: レポート出力
 
