@@ -1,7 +1,7 @@
 # Evidence Runtime Contract
 
 更新日: 2026-09-09
-状態: 作業仮説・人間確認待ち
+状態: 契約確定・Shadow実装前
 
 ## Purpose
 
@@ -40,43 +40,40 @@
 - 自動昇格は無効で、人間の承認を必要とする
 - Evidenceに秘密情報や回答本文を不要に保存しない
 
-## Open contract decisions
+## Accepted runtime contract
 
-### C1. `trigger_origin`
+### C1. `trigger_origin` and `execution_mode`
 
 **目的:** Evidenceを生成した実行経路を識別する。
 
-候補:
+契約値:
 
 - `harness`: 決定的なテスト・ハーネス実行
-- `shadow`: 通常入力を使うが外部副作用を抑止した観測実行
 - `hermes`: Hermesの通常実行経路
 
-未決定事項:
+実行モードは別フィールド`execution_mode`で表現します。
 
-- `hermes`を正式な許可値とするか
-- `harness`と`shadow`の責務境界
-- 外部Agent runnerを別の値として登録するか
+- `shadow`: 観測のみ。外部送信を行わない
+- `strict`: 証跡と判定が成立しない場合、外部送信を停止
+- `production`: 承認済みの運用経路。別途有効化が必要
 
 受入条件:
 
 - 許可値以外を保存前に拒否する
-- 同じ値が異なる意味で使われない
-- Reportで実行経路を絞り込める
+- `trigger_origin`と`execution_mode`を混同しない
+- Reportで実行元・実行モードを別々に絞り込める
 
 ### C2. `configuration_id`
 
 **目的:** Evidenceを生成した構成を再現可能に識別する。
 
-候補:
+契約値:
 
-- `sha256:<64 lowercase hex>`だけを許可する
-- 人間向け構成名を入力として受け、Collectorがhash化する
-- 構成名とhashを別フィールドで保持する
+- `sha256:<64 lowercase hex>`だけを`configuration_id`として許可する
+- 人間向け構成名は、秘密情報を含まない別metadataとして任意に保持する
 
-未決定事項:
+実装時の前提:
 
-- 現行Adapterが持つ人間向けIDの正規化方法
 - 構成内容のcanonical serialization
 - hash計算対象に秘密情報が含まれないことの保証方法
 
@@ -90,38 +87,34 @@
 
 **目的:** Shadow実行での送信抑止結果を、Productionの配信拒否と混同しない。
 
-候補:
+契約値:
 
-- `blocked`: 実際に外部送信を抑止した
-- `would_block`: Productionなら抑止される判定だった
-- `inconclusive`: 送信可否を判定できなかった
+- `decision: blocked`: Productionなら止めるべきだったというポリシー判定
+- Shadowでは外部送信を行わず、`side_effect_status: not_attempted`を記録する
+- 実際のStrict/Production抑止は、`side_effect_status: suppressed`で表す
+- 判定不能は`decision: inconclusive`で表す
 
-未決定事項:
+境界:
 
-- Shadow adapterが実際の外部送信を完全に持たないことの保証
-- 「送信抑止」と「送信対象外」の区別
-- Production Evidenceへ移送可能な条件
+- `blocked`は実際の外部送信抑止を意味しない
+- `decision`と`side_effect_status`を別々に監査する
+- Shadow EvidenceだけでProduction配信を証明しない
 
 受入条件:
 
 - Shadow recordだけでProduction配信を証明しない
-- `blocked`の意味をReportで表示する
-- 外部送信の有無を独立したmetadataとして監査できる
+- `decision`と`side_effect_status`をReportで表示する
+- Shadowの外部送信未実施を独立metadataとして監査できる
 
 ### C4. Evidence保存失敗
 
 **目的:** 保存障害がAgent判定やユーザー応答へ与える影響を明示する。
 
-候補:
-
-- 判定結果は返し、`evidence_persisted=false`とエラーコードを返す
-- Strict接続時だけ応答を停止する
-- すべての接続で保存失敗を安全停止にする
-
-暫定方針:
+契約値:
 
 - Shadowでは判定と保存結果を分離する
-- Strict接続の停止方針は人間が決定するまで未接続とする
+- StrictではEvidence保存を含む検証が成立しなければ外部送信を停止する
+- Productionは別途運用承認されるまで未接続とする
 - 絶対パス・秘密情報をエラー出力へ含めない
 
 受入条件:
@@ -139,7 +132,7 @@
 3. 保存失敗: 判定結果と保存結果が分離される
 4. 同一Evidence再実行: 重複として安全に扱われる
 5. 同一ID・異なるhash: conflictとしてfail-closedになる
-6. Shadow blocked: Production配信実績として集計されない
+6. Shadow blocked: `decision=blocked`かつ`side_effect_status=not_attempted`として記録され、Production配信実績として集計されない
 7. 不正な`trigger_origin`: 保存・集計対象から拒否される
 8. 不正な`configuration_id`: 保存・集計対象から拒否される
 9. 秘密情報の混入: Evidence、ログ、Reportに保存されない
