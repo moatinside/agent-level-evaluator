@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -82,6 +83,13 @@ def validate_schema_file() -> list[str]:
 
 def validate_evidence(record: dict) -> list[str]:
     errors: list[str] = []
+    if not isinstance(record, dict):
+        return ["evidence must be an object"]
+    schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+    allowed = set(schema.get("properties", {}))
+    unknown = sorted(set(record) - allowed)
+    if unknown:
+        errors.append(f"unknown evidence fields: {', '.join(unknown)}")
     required = [
         "schema_version", "assessment_id", "level", "capability_id",
         "capability_contract_version", "agent_configuration_id",
@@ -97,6 +105,11 @@ def validate_evidence(record: dict) -> list[str]:
         return errors
     if record["schema_version"] != 1:
         errors.append("evidence schema_version must be 1")
+    for key in ["assessment_id", "capability_id", "capability_contract_version", "scenario_id", "input_ref"]:
+        if not isinstance(record[key], str) or not record[key]:
+            errors.append(f"{key} must be a non-empty string")
+    if not re.fullmatch(r"^[a-z][a-z0-9_]+$", record["capability_id"]):
+        errors.append("capability_id has invalid format")
     if not isinstance(record["level"], int) or not 1 <= record["level"] <= 9:
         errors.append("level must be integer 1..9")
     if record["evidence_class"] not in EVIDENCE_CLASSES:
@@ -112,6 +125,12 @@ def validate_evidence(record: dict) -> list[str]:
     for key in ["agent_configuration_id", "evaluator_configuration_id", "integrity_hash"]:
         if not isinstance(record[key], str) or not HASH_RE.fullmatch(record[key]):
             errors.append(f"{key} must be sha256:<64 lowercase hex>")
+    without_hash = {key: value for key, value in record.items() if key != "integrity_hash"}
+    expected_hash = "sha256:" + hashlib.sha256(
+        json.dumps(without_hash, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    if record["integrity_hash"] != expected_hash:
+        errors.append("integrity_hash does not match record")
     if not isinstance(record["expected_contract"], list) or not record["expected_contract"]:
         errors.append("expected_contract must be a non-empty array")
     if record["evidence_class"] == "O" and not record.get("action_trace_ref"):

@@ -100,6 +100,18 @@ def collect(request: dict[str, Any], run_result: dict[str, Any], metadata: dict[
 
 def append_record(path: Path, record: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    assessment_id = record["assessment_id"]
+    integrity_hash = record.get("integrity_hash")
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            existing = json.loads(line)
+            if existing.get("assessment_id") != assessment_id:
+                continue
+            if existing.get("integrity_hash") == integrity_hash:
+                return
+            raise ValueError(f"duplicate assessment_id with different integrity_hash: {assessment_id}")
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
 

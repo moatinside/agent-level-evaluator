@@ -74,7 +74,7 @@ class OperationalEvidenceCollectorTests(unittest.TestCase):
         self.assertEqual(record["negative_evidence"][0]["type"], "safe-stop")
         self.assertEqual(validator.validate_evidence(record), [])
 
-    def test_jsonl_append_is_replayable(self):
+    def test_jsonl_append_is_idempotent(self):
         request, result = run_agent(PRODUCER_GOOD, None)
         record = collector.collect(request, result, META)
         with tempfile.TemporaryDirectory() as directory:
@@ -82,7 +82,7 @@ class OperationalEvidenceCollectorTests(unittest.TestCase):
             collector.append_record(path, record)
             collector.append_record(path, record)
             lines = path.read_text(encoding="utf-8").splitlines()
-            self.assertEqual(len(lines), 2)
+            self.assertEqual(len(lines), 1)
             self.assertEqual(json.loads(lines[0])["assessment_id"], record["assessment_id"])
 
 

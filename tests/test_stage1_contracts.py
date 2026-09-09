@@ -35,6 +35,15 @@ class Stage1ContractTests(unittest.TestCase):
         self.assertTrue(errors)
         self.assertTrue(any("integrity_hash" in error for error in errors))
 
+    def test_unknown_field_and_tampered_hash_are_rejected(self):
+        path = ROOT / "tests" / "fixtures" / "evidence-valid.json"
+        record = json.loads(path.read_text(encoding="utf-8"))
+        record["raw_response"] = "secret"
+        self.assertTrue(any("unknown evidence fields" in error for error in module.validate_evidence(record)))
+        record = json.loads(path.read_text(encoding="utf-8"))
+        record["integrity_hash"] = "sha256:" + "0" * 64
+        self.assertTrue(any("does not match" in error for error in module.validate_evidence(record)))
+
 
 if __name__ == "__main__":
     unittest.main()

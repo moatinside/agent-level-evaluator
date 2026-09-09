@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import sys
 import tempfile
@@ -38,7 +39,7 @@ def evidence(level: int, evidence_class: str) -> dict:
         "evidence_class": evidence_class,
         "scenario_id": f"scenario-{level}-{evidence_class}",
         "trigger_origin": "harness",
-        "environment_class": "fixture",
+        "environment_class": "production-like",
         "started_at": "2026-09-06T00:00:00Z",
         "ended_at": "2026-09-06T00:00:01Z",
         "input_ref": "fixture-input",
@@ -50,6 +51,9 @@ def evidence(level: int, evidence_class: str) -> dict:
     }
     if evidence_class == "O":
         value["action_trace_ref"] = "fixture-trace"
+    value["integrity_hash"] = "sha256:" + hashlib.sha256(
+        json.dumps({k: v for k, v in value.items() if k != "integrity_hash"}, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
     return value
 
 
@@ -73,6 +77,37 @@ class PromotionGateTests(unittest.TestCase):
         self.assertEqual(result["operational_level"], 1)
         self.assertEqual(result["levels"]["1"]["status"], "passed")
 
+    def test_jsonl_is_loaded_and_duplicate_is_reported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            evidence_dir = root / "operational-evidence"
+            evidence_dir.mkdir()
+            record = evidence(1, "O")
+            (evidence_dir / "shadow.jsonl").write_text(
+                json.dumps(record) + "\n" + json.dumps(record) + "\nnot-json\n", encoding="utf-8"
+            )
+            result = promotion.assess(root)
+        self.assertEqual(result["records_considered"], 1)
+        self.assertEqual(result["records_duplicate"], 1)
+        self.assertEqual(result["records_rejected"], 1)
+
+    def test_shadow_is_excluded_from_default_gate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            evidence_dir = root / "operational-evidence"
+            evidence_dir.mkdir()
+            record = evidence(1, "O")
+            record["environment_class"] = "shadow"
+            record["integrity_hash"] = "sha256:" + hashlib.sha256(
+                json.dumps({k: v for k, v in record.items() if k != "integrity_hash"}, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()
+            (evidence_dir / "shadow.jsonl").write_text(json.dumps(record) + "\n", encoding="utf-8")
+            result = promotion.assess(root)
+            shadow_result = promotion.assess(root, {"shadow"})
+        self.assertEqual(result["records_considered"], 0)
+        self.assertEqual(result["records_excluded_environment"], 1)
+        self.assertEqual(shadow_result["records_considered"], 1)
+
     def test_reclassification_does_not_promote(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -88,7 +123,6 @@ class PromotionGateTests(unittest.TestCase):
         self.assertEqual(result["legacy_phase_status"], "passed")
         self.assertEqual(result["summary"]["duplicate_run_count"], 1)
         self.assertIn("N", result["records"][0]["evidence_classes"])
-
 
 if __name__ == "__main__":
     unittest.main()
