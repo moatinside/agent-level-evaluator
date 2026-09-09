@@ -24,6 +24,9 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install test dependencies
+        run: python3 -m pip install --disable-pip-version-check PyYAML
+
       - name: Run unit tests
         run: python3 -m unittest discover -s tests -q
 
