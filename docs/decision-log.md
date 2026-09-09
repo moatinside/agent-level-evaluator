@@ -80,6 +80,32 @@ Level 9は次の三段階で評価する。
 
 この決定を変更する場合、本文を上書きして履歴を消さない。新しいADRを追加し、置き換えるDecision ID、変更理由、影響する証拠、再評価条件を明記する。
 
+## ADR-002 — Evidence runtime contract
+
+- **Status**: accepted
+- **Accepted at**: 2026-09-09 JST
+- **Scope**: 通常AgentのShadow接続前におけるEvidence metadata、実行モード、保存失敗の扱い
+- **Decision source**: ユーザー承認（Discord message `1547076354535718962`）
+
+### Decisions
+
+1. `trigger_origin`は`harness`または`hermes`とする。実行状態は別フィールド`execution_mode`で表し、許可値は`shadow`、`strict`、`production`とする。
+2. `configuration_id`は`sha256:<64桁の小文字hex>`形式のみを正式値とする。人間向け構成名を保持する場合は別metadataとし、秘密情報を含めない。
+3. `decision: blocked`は、Productionなら停止すべきだったというポリシー判定を表す。Shadowでは外部送信を行わず、`side_effect_status: not_attempted`を記録する。実際の抑止は`side_effect_status: suppressed`で別表現する。
+4. Evidence保存失敗時は、ShadowではAgent応答を返し、`evidence_persisted: false`と機械可読エラーを報告する。Strictでは保存を含む検証が成立しない場合、外部送信を停止する。
+
+### Consequences
+
+- `trigger_origin`、`execution_mode`、`decision`、`side_effect_status`、`evidence_persisted`を別々に監査できる。
+- Shadow EvidenceはProduction EvidenceやProduction配信実績として集計できない。
+- Strict接続は、保存失敗時のfail-closed経路を実装・検証するまで有効化しない。
+- 通常Agent接続、Production接続、cron変更、自動昇格はこのADRによって有効化されない。
+
+### Required follow-up
+
+- fake adapterで正常、Schema違反、保存失敗、重複、conflict、blocked、秘密情報混入を検証する。
+- 実AgentのShadow接続前に、外部送信が発生しないことを実ランタイム境界で確認する。
+
 ## Assessment-002 — Phase 2.3 evidence classification
 
 - **Status**: assessed
