@@ -56,8 +56,9 @@ class LegacyPipelineAuditTests(unittest.TestCase):
 
             result = MODULE.audit(root)
 
-        self.assertEqual(result["migration_status"], "ready_for_runtime_cutover")
-        self.assertTrue(result["cron_cutover_allowed"])
+        self.assertEqual(result["migration_status"], "ready_for_review")
+        self.assertTrue(result["runtime_cutover_ready_for_review"])
+        self.assertFalse(result["cron_cutover_allowed"])
         self.assertEqual(result["blockers"], [])
 
 
