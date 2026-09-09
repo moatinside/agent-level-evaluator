@@ -32,6 +32,10 @@ scheduler changes.
 4. Run `python3 scripts/evidence_report.py --summary` for human-auditable Evidence results.
 5. Run `python3 evals/run_evals.py` for skill-level structural checks.
 
+Before connecting a normal Agent execution, review
+`docs/evidence-runtime-contract.md`. It records the open contract decisions and
+the Shadow acceptance matrix; it does not enable the connection by itself.
+
 ## Current state
 
 The canonical repository is the current `main` branch. The Evidence Gate runtime
