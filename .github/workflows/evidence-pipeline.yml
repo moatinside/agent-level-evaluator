@@ -35,5 +35,10 @@ jobs:
       - name: Compile Python sources
         run: python3 -m compileall -q scripts tests
 
-      - name: Check diff whitespace
-        run: git diff --check "${{ github.event.pull_request.base.sha || github.event.before }}" "${{ github.sha }}"
+      - name: Check PR diff whitespace
+        if: github.event_name == 'pull_request'
+        run: git diff --check "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}"
+
+      - name: Check push diff whitespace
+        if: github.event_name == 'push'
+        run: git diff --check "${{ github.sha }}^" "${{ github.sha }}"

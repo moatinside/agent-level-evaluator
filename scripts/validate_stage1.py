@@ -116,7 +116,7 @@ def validate_evidence(record: dict) -> list[str]:
         errors.append("invalid evidence_class")
     if record["result"] not in RESULTS:
         errors.append("invalid result")
-    if record["trigger_origin"] not in {"user", "agent", "harness", "cron"}:
+    if record["trigger_origin"] not in {"harness", "hermes"}:
         errors.append("invalid trigger_origin")
     if record["environment_class"] not in {"fixture", "sandbox", "shadow", "production-like", "production"}:
         errors.append("invalid environment_class")
@@ -125,6 +125,12 @@ def validate_evidence(record: dict) -> list[str]:
     for key in ["agent_configuration_id", "evaluator_configuration_id", "integrity_hash"]:
         if not isinstance(record[key], str) or not HASH_RE.fullmatch(record[key]):
             errors.append(f"{key} must be sha256:<64 lowercase hex>")
+    if "execution_mode" in record and record["execution_mode"] not in {"shadow", "strict", "production"}:
+        errors.append("invalid execution_mode")
+    if "decision" in record and record["decision"] not in RESULTS:
+        errors.append("invalid decision")
+    if "side_effect_status" in record and record["side_effect_status"] not in {"not_attempted", "suppressed", "delivered", "unknown"}:
+        errors.append("invalid side_effect_status")
     without_hash = {key: value for key, value in record.items() if key != "integrity_hash"}
     expected_hash = "sha256:" + hashlib.sha256(
         json.dumps(without_hash, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
