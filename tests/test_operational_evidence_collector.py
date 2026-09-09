@@ -6,6 +6,7 @@ import json
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from typing import Any
@@ -84,6 +85,17 @@ class OperationalEvidenceCollectorTests(unittest.TestCase):
             lines = path.read_text(encoding="utf-8").splitlines()
             self.assertEqual(len(lines), 1)
             self.assertEqual(json.loads(lines[0])["assessment_id"], record["assessment_id"])
+    def test_concurrent_identical_append_is_idempotent(self):
+        request, result = run_agent(PRODUCER_GOOD, None)
+        record = collector.collect(request, result, META)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "evidence.jsonl"
+            threads = [threading.Thread(target=collector.append_record, args=(path, record)) for _ in range(8)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+            self.assertEqual(len(path.read_text(encoding="utf-8").splitlines()), 1)
 
 
 if __name__ == "__main__":

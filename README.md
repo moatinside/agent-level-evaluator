@@ -118,7 +118,8 @@ agent-level-evaluator/
 │   ├── collect_operational_evidence.py ← metadata-first運用証拠Collector
 │   ├── run_shadow_batch.py ← 複数ケースのshadow実行・集計
 │   ├── reclassify_phase23.py ← Phase 2.3履歴の再分類
-│   └── promotion_gate.py ← 証拠ゲートによる昇格ブロック
+│   ├── promotion_gate.py ← 証拠ゲートによる昇格ブロック（Shadowは既定除外）
+│   └── evidence_report.py ← 採用Evidenceの一覧・詳細・集計
 
 ├── evals/              ← スキル単位の品質保証（Schmid: Don't Ship Skills Without Evals）
 │   ├── README.md       ← テスト定義の書き方・使い方
@@ -154,7 +155,8 @@ python3 evals/run_evals.py --ablate   # アブレーション（スキル有無�
 1. **自己評価**: エージェントに「このリポジトリで自分のレベルを評価して」と指示
 2. **現行状態を確認**: `python3 scripts/evaluate_current_state.py`
 3. **移行状態を監査**: `python3 scripts/audit_legacy_pipeline.py --root .`
-4. **定期評価**: Evidence Gateの結果だけをcron等で観測し、Levelを自動昇格しない
+4. **Evidenceを監査**: `python3 scripts/evidence_report.py --summary`（既定では `production-like` / `production` のみ。Shadowは `--environment-class shadow` で明示）
+5. **定期評価**: Evidence Gateの結果だけをcron等で観測し、Levelを自動昇格しない
 
 評価結果を報告するだけでは、レベルアップとはみなしません。実行可能な成果物、合格テスト、実行ログが揃って初めてチェックポイントを完了扱いにします。
 詳細な状態遷移と承認境界は [autonomous-progression-protocol.md](docs/autonomous-progression-protocol.md) を参照してください。
