@@ -23,6 +23,7 @@
 - Phase 2.3: 開発実験の履歴として保持し、Level昇格には使用しない
 - 自動昇格: 無効（人間の承認が必要）
 - Production接続・cron切替: 未実施（別途承認が必要）
+- 通常Agent接続前の契約整理: [docs/evidence-runtime-contract.md](docs/evidence-runtime-contract.md)
 - 現行状態の確認: `python3 scripts/evaluate_current_state.py`
 
 ## Start Here
