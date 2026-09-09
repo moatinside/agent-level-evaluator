@@ -131,13 +131,26 @@ def validate_evidence(record: dict) -> list[str]:
     ).hexdigest()
     if record["integrity_hash"] != expected_hash:
         errors.append("integrity_hash does not match record")
-    if not isinstance(record["expected_contract"], list) or not record["expected_contract"]:
-        errors.append("expected_contract must be a non-empty array")
-    if record["evidence_class"] == "O" and not record.get("action_trace_ref"):
-        errors.append("O evidence requires action_trace_ref")
+    if not isinstance(record["expected_contract"], list) or not record["expected_contract"] or not all(isinstance(item, str) for item in record["expected_contract"]):
+        errors.append("expected_contract must be a non-empty array of strings")
+    for key in ["action_trace_ref", "draft_ref", "validator_report_ref", "revision_diff_ref", "final_output_ref"]:
+        if key in record and not isinstance(record[key], str):
+            errors.append(f"{key} must be a string")
+    if "acceptance_results" in record and not isinstance(record["acceptance_results"], dict):
+        errors.append("acceptance_results must be an object")
+    if "negative_evidence" in record and (not isinstance(record["negative_evidence"], list) or not all(isinstance(item, dict) for item in record["negative_evidence"])):
+        errors.append("negative_evidence must be an array of objects")
+    if "side_effects" in record and (not isinstance(record["side_effects"], list) or not all(isinstance(item, str) for item in record["side_effects"])):
+        errors.append("side_effects must be an array of strings")
+    if "rollback_result" in record and record["rollback_result"] not in {"not_required", "passed", "failed", "unknown"}:
+        errors.append("invalid rollback_result")
+    if record["evidence_class"] == "O" and not isinstance(record.get("action_trace_ref"), str):
+        errors.append("O evidence requires string action_trace_ref")
     if record["evidence_class"] == "F" and not isinstance(record.get("acceptance_results"), dict):
         errors.append("F evidence requires acceptance_results")
-    for key in ["started_at", "ended_at"]:
+    for key in ["started_at", "ended_at", "reviewed_at"]:
+        if key not in record:
+            continue
         try:
             datetime.fromisoformat(record[key].replace("Z", "+00:00"))
         except (ValueError, AttributeError):

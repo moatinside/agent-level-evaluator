@@ -141,7 +141,11 @@ def main() -> int:
             else:
                 decision["evidence_persisted"] = True
     print(json.dumps(decision, ensure_ascii=False, sort_keys=True))
-    return 0 if decision["status"] == "passed" else 1
+    if decision["status"] != "passed":
+        return 1
+    if decision.get("evidence_persisted") is False:
+        return 2
+    return 0
 
 
 if __name__ == "__main__":

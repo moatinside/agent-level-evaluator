@@ -91,7 +91,24 @@ class PromotionGateTests(unittest.TestCase):
         self.assertEqual(result["records_duplicate"], 1)
         self.assertEqual(result["records_rejected"], 1)
 
-    def test_shadow_is_excluded_from_default_gate(self):
+    def test_conflicting_valid_records_are_not_accepted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            evidence_dir = root / "operational-evidence"
+            evidence_dir.mkdir()
+            accepted = evidence(1, "O")
+            conflict = dict(accepted)
+            conflict["result"] = "blocked"
+            conflict["integrity_hash"] = "sha256:" + hashlib.sha256(
+                json.dumps({k: v for k, v in conflict.items() if k != "integrity_hash"}, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()
+            (evidence_dir / "a.json").write_text(json.dumps(accepted), encoding="utf-8")
+            (evidence_dir / "b.json").write_text(json.dumps(conflict), encoding="utf-8")
+            result = promotion.assess(root)
+        self.assertEqual(result["records_considered"], 0)
+        self.assertEqual(result["records_conflict"], 1)
+        self.assertEqual(result["records_rejected"], 1)
+
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             evidence_dir = root / "operational-evidence"

@@ -39,6 +39,7 @@ def collect_records_with_stats(root: Path, environment_classes: set[str] | None 
     records: list[dict[str, Any]] = []
     stats = {"files_scanned": 0, "lines_scanned": 0, "records_eligible_scanned": 0, "records_excluded_environment": 0, "records_rejected": 0, "records_duplicate": 0, "records_conflict": 0}
     seen: dict[str, str] = {}
+    conflicted: set[str] = set()
     for path in _iter_paths(root):
         stats["files_scanned"] += 1
         try:
@@ -70,12 +71,18 @@ def collect_records_with_stats(root: Path, environment_classes: set[str] | None 
                 continue
             stats["records_eligible_scanned"] += 1
             assessment_id = value["assessment_id"]
+            if assessment_id in conflicted:
+                stats["records_rejected"] += 1
+                continue
             if assessment_id in seen:
                 if seen[assessment_id] == value.get("integrity_hash"):
                     stats["records_duplicate"] += 1
                 else:
                     stats["records_conflict"] += 1
                     stats["records_rejected"] += 1
+                    conflicted.add(assessment_id)
+                    records[:] = [r for r in records if r["assessment_id"] != assessment_id]
+                    seen.pop(assessment_id, None)
                 continue
             seen[assessment_id] = str(value.get("integrity_hash"))
             records.append(value)

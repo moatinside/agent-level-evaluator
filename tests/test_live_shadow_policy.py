@@ -96,7 +96,7 @@ class LiveShadowPolicyTests(unittest.TestCase):
                 input=json.dumps(request()), text=True, capture_output=True,
             )
         decision = json.loads(proc.stdout)
-        self.assertEqual(proc.returncode, 0)
+        self.assertEqual(proc.returncode, 2)
         self.assertEqual(decision["status"], "passed")
         self.assertTrue(decision["allowed"])
         self.assertFalse(decision["evidence_persisted"])

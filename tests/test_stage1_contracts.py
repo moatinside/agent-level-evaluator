@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import sys
 import unittest
@@ -43,6 +44,19 @@ class Stage1ContractTests(unittest.TestCase):
         record = json.loads(path.read_text(encoding="utf-8"))
         record["integrity_hash"] = "sha256:" + "0" * 64
         self.assertTrue(any("does not match" in error for error in module.validate_evidence(record)))
+    def test_schema_field_types_and_reviewed_at_are_rejected(self):
+        path = ROOT / "tests" / "fixtures" / "evidence-valid.json"
+        record = json.loads(path.read_text(encoding="utf-8"))
+        record["expected_contract"] = [1]
+        record["action_trace_ref"] = 1
+        record["reviewed_at"] = "not-a-datetime"
+        record["integrity_hash"] = "sha256:" + hashlib.sha256(
+            json.dumps({k: v for k, v in record.items() if k != "integrity_hash"}, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        errors = module.validate_evidence(record)
+        self.assertTrue(any("expected_contract" in error for error in errors))
+        self.assertTrue(any("action_trace_ref" in error for error in errors))
+        self.assertTrue(any("reviewed_at" in error for error in errors))
 
 
 if __name__ == "__main__":
