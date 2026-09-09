@@ -16,6 +16,23 @@
 
 どのエージェントでも、クローンして「自分のレベルを評価して」と指示するだけで使えます。`AGENTS.md` が評価手順の本体です。
 
+## Current Status
+
+- 現行の評価経路: Evidence Gate
+- 旧PhaseのExecutor: `archive/legacy-phase/` にアーカイブ済み
+- Phase 2.3: 開発実験の履歴として保持し、Level昇格には使用しない
+- 自動昇格: 無効（人間の承認が必要）
+- Production接続・cron切替: 未実施（別途承認が必要）
+- 現行状態の確認: `python3 scripts/evaluate_current_state.py`
+
+## Start Here
+
+1. `AGENTS.md` を読む
+2. `python3 scripts/evaluate_current_state.py` で現行Evidence状態を確認
+3. `python3 scripts/audit_legacy_pipeline.py --root .` で旧経路の混入がないことを確認
+4. `python3 scripts/evidence_report.py --summary` でEvidenceを監査
+5. Skill単位の品質確認には `python3 evals/run_evals.py` を使う
+
 ## Quick Start
 
 ```bash

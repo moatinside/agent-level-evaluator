@@ -28,8 +28,9 @@ class CurrentEvaluationTests(unittest.TestCase):
     def test_current_entrypoint_reports_cutover_blockers(self) -> None:
         result = MODULE.evaluate(ROOT)
 
-        self.assertEqual(result["migration_status"], "ready_for_runtime_cutover")
-        self.assertTrue(result["cron_cutover_allowed"])
+        self.assertEqual(result["migration_status"], "ready_for_review")
+        self.assertTrue(result["runtime_cutover_ready_for_review"])
+        self.assertFalse(result["cron_cutover_allowed"])
         self.assertEqual(result["migration_blockers"], [])
 
 

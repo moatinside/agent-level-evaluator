@@ -36,6 +36,7 @@ def evaluate(root: Path) -> dict[str, Any]:
         "mode": "current_evidence_read_only",
         "repository": str(root),
         "migration_status": migration["migration_status"],
+        "runtime_cutover_ready_for_review": migration["runtime_cutover_ready_for_review"],
         "cron_cutover_allowed": migration["cron_cutover_allowed"],
         "migration_blockers": migration["blockers"],
         "evidence": {
@@ -68,7 +69,7 @@ def main() -> int:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(rendered, encoding="utf-8")
     print(rendered, end="")
-    return 0 if result["migration_status"] == "ready_for_runtime_cutover" else 1
+    return 0 if result["migration_status"] == "ready_for_review" else 1
 
 
 if __name__ == "__main__":

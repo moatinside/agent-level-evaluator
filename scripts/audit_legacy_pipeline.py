@@ -50,6 +50,7 @@ def audit(root: Path) -> dict[str, Any]:
         "do not connect it to Level promotion" in decision_text
         or "Phase進捗とOperational Levelが分離" in decision_text
         or "historical development checkpoints from current capability evidence" in decision_text
+        or "must not be used as a direct" in decision_text
     )
 
     blockers: list[str] = []
@@ -76,7 +77,7 @@ def audit(root: Path) -> dict[str, Any]:
     elif not shadow_approved:
         migration_status = "shadow_pending"
     else:
-        migration_status = "ready_for_runtime_cutover"
+        migration_status = "ready_for_review"
 
     return {
         "schema_version": 1,
@@ -98,7 +99,8 @@ def audit(root: Path) -> dict[str, Any]:
         },
         "migration_status": migration_status,
         "blockers": blockers,
-        "cron_cutover_allowed": migration_status == "ready_for_runtime_cutover",
+        "runtime_cutover_ready_for_review": migration_status == "ready_for_review",
+        "cron_cutover_allowed": False,
         "decision": (
             "Keep legacy artifacts historical and resolve the listed migration blockers."
             if blockers
@@ -121,7 +123,7 @@ def main() -> int:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(rendered, encoding="utf-8")
     print(rendered, end="")
-    return 0 if result["migration_status"] == "ready_for_runtime_cutover" else 1
+    return 0 if result["migration_status"] == "ready_for_review" else 1
 
 
 if __name__ == "__main__":
