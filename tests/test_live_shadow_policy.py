@@ -18,8 +18,8 @@ def request(**overrides):
         "request_id": "turn-test-001",
         "final_text": "Answer includes evidence.",
         "metadata": {
-            "agent_configuration_id": "agent-test-v1",
-            "evaluator_configuration_id": "evaluator-test-v1",
+            "agent_configuration_id": "sha256:" + "a" * 64,
+            "evaluator_configuration_id": "sha256:" + "b" * 64,
         },
         "policy": {
             "required_patterns": ["evidence"],
@@ -86,6 +86,21 @@ class LiveShadowPolicyTests(unittest.TestCase):
         self.assertNotIn(raw, record)
         self.assertIn("input_ref", record)
         self.assertEqual(json.loads(record)["evidence_class"], "O")
+
+    def test_evidence_write_failure_does_not_change_decision(self):
+        with tempfile.TemporaryDirectory() as directory:
+            blocker = Path(directory) / "blocker"
+            blocker.write_text("not a directory")
+            proc = subprocess.run(
+                [sys.executable, str(SCRIPT), "--evidence-output", str(blocker / "evidence.jsonl")],
+                input=json.dumps(request()), text=True, capture_output=True,
+            )
+        decision = json.loads(proc.stdout)
+        self.assertEqual(proc.returncode, 2)
+        self.assertEqual(decision["status"], "passed")
+        self.assertTrue(decision["allowed"])
+        self.assertFalse(decision["evidence_persisted"])
+        self.assertEqual(decision["evidence_error_code"], "evidence_write_failed")
 
 
 if __name__ == "__main__":

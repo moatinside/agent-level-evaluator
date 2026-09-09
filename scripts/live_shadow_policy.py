@@ -98,7 +98,7 @@ def write_evidence(request: dict[str, Any], decision: dict[str, Any], output: Pa
             "agent_configuration_id": metadata["agent_configuration_id"],
             "evaluator_configuration_id": metadata["evaluator_configuration_id"],
             "scenario_id": request["request_id"],
-            "trigger_origin": "hermes",
+            "trigger_origin": "harness",
             "environment_class": "shadow",
             "started_at": started,
             "ended_at": timestamp(),
@@ -115,9 +115,7 @@ def main() -> int:
     try:
         request = json.load(sys.stdin)
         decision = evaluate(request)
-        if args.evidence_output is not None:
-            write_evidence(request, decision, args.evidence_output)
-    except (json.JSONDecodeError, OSError, ValueError) as exc:
+    except (json.JSONDecodeError, ValueError) as exc:
         decision = {
             "schema_version": 1,
             "request_id": request.get("request_id") if isinstance(request, dict) else None,
@@ -130,8 +128,24 @@ def main() -> int:
             "correction_count": 0,
             "issues": [],
         }
+    else:
+        decision["evidence_persisted"] = None
+        decision["evidence_error_code"] = None
+        if args.evidence_output is not None:
+            try:
+                write_evidence(request, decision, args.evidence_output)
+            except (OSError, ValueError) as exc:
+                decision["evidence_persisted"] = False
+                decision["evidence_error_code"] = "evidence_write_failed"
+                print(f"evidence persistence failed: {type(exc).__name__}", file=sys.stderr)
+            else:
+                decision["evidence_persisted"] = True
     print(json.dumps(decision, ensure_ascii=False, sort_keys=True))
-    return 0 if decision["status"] == "passed" else 1
+    if decision["status"] != "passed":
+        return 1
+    if decision.get("evidence_persisted") is False:
+        return 2
+    return 0
 
 
 if __name__ == "__main__":

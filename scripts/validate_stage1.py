@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -82,6 +83,13 @@ def validate_schema_file() -> list[str]:
 
 def validate_evidence(record: dict) -> list[str]:
     errors: list[str] = []
+    if not isinstance(record, dict):
+        return ["evidence must be an object"]
+    schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+    allowed = set(schema.get("properties", {}))
+    unknown = sorted(set(record) - allowed)
+    if unknown:
+        errors.append(f"unknown evidence fields: {', '.join(unknown)}")
     required = [
         "schema_version", "assessment_id", "level", "capability_id",
         "capability_contract_version", "agent_configuration_id",
@@ -97,6 +105,11 @@ def validate_evidence(record: dict) -> list[str]:
         return errors
     if record["schema_version"] != 1:
         errors.append("evidence schema_version must be 1")
+    for key in ["assessment_id", "capability_id", "capability_contract_version", "scenario_id", "input_ref"]:
+        if not isinstance(record[key], str) or not record[key]:
+            errors.append(f"{key} must be a non-empty string")
+    if not re.fullmatch(r"^[a-z][a-z0-9_]+$", record["capability_id"]):
+        errors.append("capability_id has invalid format")
     if not isinstance(record["level"], int) or not 1 <= record["level"] <= 9:
         errors.append("level must be integer 1..9")
     if record["evidence_class"] not in EVIDENCE_CLASSES:
@@ -112,13 +125,32 @@ def validate_evidence(record: dict) -> list[str]:
     for key in ["agent_configuration_id", "evaluator_configuration_id", "integrity_hash"]:
         if not isinstance(record[key], str) or not HASH_RE.fullmatch(record[key]):
             errors.append(f"{key} must be sha256:<64 lowercase hex>")
-    if not isinstance(record["expected_contract"], list) or not record["expected_contract"]:
-        errors.append("expected_contract must be a non-empty array")
-    if record["evidence_class"] == "O" and not record.get("action_trace_ref"):
-        errors.append("O evidence requires action_trace_ref")
+    without_hash = {key: value for key, value in record.items() if key != "integrity_hash"}
+    expected_hash = "sha256:" + hashlib.sha256(
+        json.dumps(without_hash, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    if record["integrity_hash"] != expected_hash:
+        errors.append("integrity_hash does not match record")
+    if not isinstance(record["expected_contract"], list) or not record["expected_contract"] or not all(isinstance(item, str) for item in record["expected_contract"]):
+        errors.append("expected_contract must be a non-empty array of strings")
+    for key in ["action_trace_ref", "draft_ref", "validator_report_ref", "revision_diff_ref", "final_output_ref"]:
+        if key in record and not isinstance(record[key], str):
+            errors.append(f"{key} must be a string")
+    if "acceptance_results" in record and not isinstance(record["acceptance_results"], dict):
+        errors.append("acceptance_results must be an object")
+    if "negative_evidence" in record and (not isinstance(record["negative_evidence"], list) or not all(isinstance(item, dict) for item in record["negative_evidence"])):
+        errors.append("negative_evidence must be an array of objects")
+    if "side_effects" in record and (not isinstance(record["side_effects"], list) or not all(isinstance(item, str) for item in record["side_effects"])):
+        errors.append("side_effects must be an array of strings")
+    if "rollback_result" in record and record["rollback_result"] not in {"not_required", "passed", "failed", "unknown"}:
+        errors.append("invalid rollback_result")
+    if record["evidence_class"] == "O" and not isinstance(record.get("action_trace_ref"), str):
+        errors.append("O evidence requires string action_trace_ref")
     if record["evidence_class"] == "F" and not isinstance(record.get("acceptance_results"), dict):
         errors.append("F evidence requires acceptance_results")
-    for key in ["started_at", "ended_at"]:
+    for key in ["started_at", "ended_at", "reviewed_at"]:
+        if key not in record:
+            continue
         try:
             datetime.fromisoformat(record[key].replace("Z", "+00:00"))
         except (ValueError, AttributeError):
