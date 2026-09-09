@@ -2,11 +2,11 @@
 
 ## Status
 
-- Status: proposed
+- Status: accepted contract; fake Shadow adapter implementation under review
 - Scope: Evaluator-side boundary for Hermes shadow/strict integration
 - Repository: `moatinside/agent-level-evaluator`
-- Branch: `feature/live-shadow-contract`
-- Base: `03b2347` (`origin/main`)
+- Current implementation branch: `feat/fake-shadow-e2e`
+- Base: `39b38fe` (`origin/main`)
 
 This document defines the callable contract between Hermes Gateway and the
 Evaluator. It does not enable production delivery or claim live operational
@@ -52,8 +52,8 @@ call. The caller owns the transport and timeout.
     "chat_id_ref": "sha256:<64 lowercase hex>",
     "session_id_ref": "sha256:<64 lowercase hex>",
     "turn_id": "turn-20260906-0001",
-    "agent_configuration_id": "agent-config-v1",
-    "evaluator_configuration_id": "evaluator-config-v1"
+    "agent_configuration_id": "sha256:<64 lowercase hex>",
+    "evaluator_configuration_id": "sha256:<64 lowercase hex>"
   },
   "policy": {
     "required_patterns": [],
@@ -81,7 +81,11 @@ shell fragments, or arbitrary URLs from this payload.
   "evidence_ref": "run:turn-20260906-0001",
   "reason": null,
   "attempt_count": 1,
-  "correction_count": 0
+  "correction_count": 0,
+  "execution_mode": "shadow",
+  "decision": "passed",
+  "side_effect_status": "not_attempted",
+  "evidence_persisted": true
 }
 ```
 
@@ -99,8 +103,9 @@ to unvalidated delivery.
 | Mode | Evaluator called | Original response visible | Delivery authority |
 |---|---:|---:|---|
 | `legacy` | no | yes | existing Hermes path |
-| `shadow` | yes | yes | existing Hermes path; decision is observation only |
-| `strict` | yes | no, until pass | Evaluator decision at final boundary |
+| `shadow` | yes | yes | existing Hermes path; decision is observation only; `side_effect_status=not_attempted` |
+| `strict` | yes | no, until pass | Evaluator decision at final boundary; fail-closed on persistence failure |
+| `production` | yes | according to approval | separately approved operational path |
 
 A shadow result must never be reported as proof that delivery was blocked. A
 strict result must never silently degrade to shadow or legacy when the adapter

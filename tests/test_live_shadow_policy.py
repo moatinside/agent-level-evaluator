@@ -86,6 +86,32 @@ class LiveShadowPolicyTests(unittest.TestCase):
         self.assertNotIn(raw, record)
         self.assertIn("input_ref", record)
         self.assertEqual(json.loads(record)["evidence_class"], "O")
+        persisted = json.loads(record)
+        self.assertEqual(persisted["trigger_origin"], "harness")
+        self.assertEqual(persisted["execution_mode"], "shadow")
+        self.assertEqual(persisted["decision"], "passed")
+        self.assertEqual(persisted["side_effect_status"], "not_attempted")
+
+    def test_shadow_blocked_is_policy_decision_without_delivery(self):
+        payload = request(final_text="Answer without required marker.")
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "evidence.jsonl"
+            proc = subprocess.run(
+                [sys.executable, str(SCRIPT), "--evidence-output", str(output)],
+                input=json.dumps(payload), text=True, capture_output=True,
+            )
+            self.assertEqual(proc.returncode, 1)
+            decision = json.loads(proc.stdout)
+            record = json.loads(output.read_text(encoding="utf-8").splitlines()[0])
+            validation = subprocess.run(
+                [sys.executable, str(ROOT / "scripts" / "validate_stage1.py"), "--evidence", str(output)],
+                text=True, capture_output=True,
+            )
+        self.assertEqual(decision["status"], "blocked")
+        self.assertEqual(record["decision"], "blocked")
+        self.assertEqual(record["side_effect_status"], "not_attempted")
+        self.assertEqual(record["execution_mode"], "shadow")
+        self.assertEqual(validation.returncode, 0, validation.stdout + validation.stderr)
 
     def test_evidence_write_failure_does_not_change_decision(self):
         with tempfile.TemporaryDirectory() as directory:
