@@ -98,7 +98,7 @@ def write_evidence(request: dict[str, Any], decision: dict[str, Any], output: Pa
             "agent_configuration_id": metadata["agent_configuration_id"],
             "evaluator_configuration_id": metadata["evaluator_configuration_id"],
             "scenario_id": request["request_id"],
-            "trigger_origin": "hermes",
+            "trigger_origin": "agent",
             "environment_class": "shadow",
             "started_at": started,
             "ended_at": timestamp(),
