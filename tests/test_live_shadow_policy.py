@@ -92,6 +92,16 @@ class LiveShadowPolicyTests(unittest.TestCase):
         self.assertEqual(persisted["decision"], "passed")
         self.assertEqual(persisted["side_effect_status"], "not_attempted")
 
+    def test_preserves_hermes_trigger_origin_from_runtime_request(self):
+        payload = request(metadata={
+            "agent_configuration_id": "sha256:" + "a" * 64,
+            "evaluator_configuration_id": "sha256:" + "b" * 64,
+            "trigger_origin": "hermes",
+        })
+        proc, _, records = self.run_cli(payload, evidence=True)
+        self.assertEqual(proc.returncode, 0)
+        self.assertEqual(json.loads(records[0])["trigger_origin"], "hermes")
+
     def test_shadow_blocked_is_policy_decision_without_delivery(self):
         payload = request(final_text="Answer without required marker.")
         with tempfile.TemporaryDirectory() as directory:
