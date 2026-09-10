@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from collect_operational_evidence import append_record, collect  # noqa: E402
+from collect_operational_evidence import append_record, collect, require_hash_id  # noqa: E402
 from response_validation import validate_text  # noqa: E402
 
 STATUSES = {"passed", "blocked", "inconclusive"}
@@ -42,7 +42,7 @@ def validate_request(request: Any) -> dict[str, Any]:
     if not isinstance(metadata, dict):
         raise ValueError("metadata must be an object")
     for name in ("agent_configuration_id", "evaluator_configuration_id"):
-        require_string(metadata.get(name), f"metadata.{name}")
+        require_hash_id(metadata.get(name), f"metadata.{name}")
     policy = request.get("policy")
     if not isinstance(policy, dict):
         raise ValueError("policy must be an object")

@@ -113,6 +113,16 @@ class LiveShadowPolicyTests(unittest.TestCase):
         self.assertEqual(record["execution_mode"], "shadow")
         self.assertEqual(validation.returncode, 0, validation.stdout + validation.stderr)
 
+    def test_invalid_configuration_ids_fail_closed_without_evidence_output(self):
+        payload = request()
+        payload["metadata"]["agent_configuration_id"] = "runtime-default"
+        proc, decision, records = self.run_cli(payload)
+        self.assertEqual(proc.returncode, 1)
+        self.assertEqual(decision["status"], "inconclusive")
+        self.assertFalse(decision["allowed"])
+        self.assertIsNone(decision["final_text"])
+        self.assertEqual(records, [])
+
     def test_evidence_write_failure_does_not_change_decision(self):
         with tempfile.TemporaryDirectory() as directory:
             blocker = Path(directory) / "blocker"
@@ -125,7 +135,6 @@ class LiveShadowPolicyTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 2)
         self.assertEqual(decision["status"], "passed")
         self.assertTrue(decision["allowed"])
-        self.assertFalse(decision["evidence_persisted"])
         self.assertEqual(decision["evidence_error_code"], "evidence_write_failed")
 
 

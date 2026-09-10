@@ -78,6 +78,11 @@ class OperationalEvidenceCollectorTests(unittest.TestCase):
         self.assertEqual(record["negative_evidence"][0]["type"], "safe-stop")
         self.assertEqual(validator.validate_evidence(record), [])
 
+    def test_invalid_configuration_id_is_rejected_before_persistence(self):
+        request, result = run_agent(PRODUCER_GOOD, None)
+        with self.assertRaisesRegex(ValueError, "evaluator_configuration_id"):
+            collector.collect(request, result, {**META, "evaluator_configuration_id": "runtime-default"})
+
     def test_jsonl_append_is_idempotent(self):
         request, result = run_agent(PRODUCER_GOOD, None)
         record = collector.collect(request, result, META)
@@ -88,6 +93,7 @@ class OperationalEvidenceCollectorTests(unittest.TestCase):
             lines = path.read_text(encoding="utf-8").splitlines()
             self.assertEqual(len(lines), 1)
             self.assertEqual(json.loads(lines[0])["assessment_id"], record["assessment_id"])
+
     def test_concurrent_identical_append_is_idempotent(self):
         request, result = run_agent(PRODUCER_GOOD, None)
         record = collector.collect(request, result, META)
