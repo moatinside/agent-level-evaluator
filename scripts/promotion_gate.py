@@ -20,13 +20,19 @@ def collect_records(root: Path) -> list[dict[str, Any]]:
     for directory in (root / "operational-evidence", root / "evaluation-reports"):
         if not directory.exists():
             continue
-        for path in directory.rglob("*.json"):
+        for path in directory.rglob("*"):
+            if path.suffix not in {".json", ".jsonl"} or not path.is_file():
+                continue
             try:
-                value = load_json(path)
+                if path.suffix == ".jsonl":
+                    values = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+                else:
+                    values = [load_json(path)]
             except (OSError, json.JSONDecodeError):
                 continue
-            if isinstance(value, dict) and "evidence_class" in value:
-                records.append(value)
+            for value in values:
+                if isinstance(value, dict) and "evidence_class" in value:
+                    records.append(value)
     return records
 
 

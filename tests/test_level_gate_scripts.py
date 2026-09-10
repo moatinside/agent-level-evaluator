@@ -60,6 +60,21 @@ class PromotionGateTests(unittest.TestCase):
         self.assertEqual(result["operational_level"], "unassessed")
         self.assertEqual(result["records_considered"], 0)
 
+    def test_jsonl_evidence_ledger_is_considered(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            evidence_dir = root / "operational-evidence"
+            evidence_dir.mkdir()
+            ledger = evidence_dir / "shadow.jsonl"
+            ledger.write_text(
+                "\n".join(json.dumps(evidence(1, cls)) for cls in ["S", "F", "X", "O", "R"]) + "\n",
+                encoding="utf-8",
+            )
+            result = promotion.assess(root)
+        self.assertEqual(result["records_considered"], 5)
+        self.assertEqual(result["operational_level"], 1)
+        self.assertEqual(result["levels"]["1"]["status"], "passed")
+
     def test_complete_level_one_evidence_promotes_only_level_one(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
