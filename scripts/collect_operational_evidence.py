@@ -10,6 +10,7 @@ import argparse
 import fcntl
 import hashlib
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -32,6 +33,16 @@ def now() -> str:
 def require_string(value: Any, name: str) -> str:
     if not isinstance(value, str) or not value:
         raise ValueError(f"{name} must be a non-empty string")
+    return value
+
+
+HASH_ID_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+
+
+def require_hash_id(value: Any, name: str) -> str:
+    value = require_string(value, name)
+    if not HASH_ID_RE.fullmatch(value):
+        raise ValueError(f"{name} must be sha256:<64 lowercase hex>")
     return value
 
 
@@ -72,8 +83,8 @@ def collect(request: dict[str, Any], run_result: dict[str, Any], metadata: dict[
         "level": level,
         "capability_id": require_string(metadata.get("capability_id"), "capability_id"),
         "capability_contract_version": require_string(metadata.get("capability_contract_version", "1.0.0"), "capability_contract_version"),
-        "agent_configuration_id": require_string(metadata.get("agent_configuration_id"), "agent_configuration_id"),
-        "evaluator_configuration_id": require_string(metadata.get("evaluator_configuration_id"), "evaluator_configuration_id"),
+        "agent_configuration_id": require_hash_id(metadata.get("agent_configuration_id"), "agent_configuration_id"),
+        "evaluator_configuration_id": require_hash_id(metadata.get("evaluator_configuration_id"), "evaluator_configuration_id"),
         "evidence_class": "O",
         "scenario_id": require_string(metadata.get("scenario_id"), "scenario_id"),
         "trigger_origin": metadata.get("trigger_origin", "harness"),
