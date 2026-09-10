@@ -5,6 +5,7 @@ import importlib.util
 import hashlib
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -35,6 +36,23 @@ class Stage1ContractTests(unittest.TestCase):
         errors = module.validate_evidence(record)
         self.assertTrue(errors)
         self.assertTrue(any("integrity_hash" in error for error in errors))
+
+    def test_jsonl_evidence_file_is_validated_record_by_record(self):
+        fixture = ROOT / "tests" / "fixtures" / "evidence-valid.json"
+        content = fixture.read_text(encoding="utf-8")
+        record = json.loads(content)
+        line = json.dumps(record, ensure_ascii=False, separators=(",", ":"))
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8") as handle:
+            handle.write(line + "\n" + line + "\n")
+            handle.flush()
+            self.assertEqual(module.load_evidence_records(Path(handle.name)), [record, record])
+
+    def test_jsonl_evidence_reports_malformed_line(self):
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8") as handle:
+            handle.write("{}\nnot-json\n")
+            handle.flush()
+            with self.assertRaises(json.JSONDecodeError):
+                module.load_evidence_records(Path(handle.name))
 
     def test_unknown_field_and_tampered_hash_are_rejected(self):
         path = ROOT / "tests" / "fixtures" / "evidence-valid.json"

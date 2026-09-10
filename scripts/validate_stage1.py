@@ -9,6 +9,7 @@ import re
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 try:
     import yaml
@@ -164,6 +165,20 @@ def validate_evidence(record: dict) -> list[str]:
     return errors
 
 
+def load_evidence_records(path: Path) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip():
+            continue
+        record = json.loads(line)
+        if not isinstance(record, dict):
+            raise ValueError(f"line {line_number} must contain a JSON object")
+        records.append(record)
+    if not records:
+        raise ValueError("evidence file contains no JSON records")
+    return records
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--evidence", type=Path)
@@ -171,11 +186,12 @@ def main() -> int:
     errors = validate_contracts(load_contracts()) + validate_schema_file()
     if args.evidence:
         try:
-            record = json.loads(args.evidence.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
+            records = load_evidence_records(args.evidence)
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
             errors.append(f"cannot load evidence: {exc}")
         else:
-            errors.extend(validate_evidence(record))
+            for line_number, record in enumerate(records, 1):
+                errors.extend(f"line {line_number}: {error}" for error in validate_evidence(record))
     if errors:
         print(json.dumps({"status": "FAIL", "errors": errors}, ensure_ascii=False, indent=2))
         return 1
