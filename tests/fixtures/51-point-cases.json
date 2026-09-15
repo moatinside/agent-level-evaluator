@@ -1,0 +1,38 @@
+[
+  {
+    "case_id": "gate-pass",
+    "input": "粗い事業仮説を次の検証へ変換できる",
+    "gate": {
+      "decision_relevance": true,
+      "evidence_change": true,
+      "reversibility": true,
+      "human_alignment": true,
+      "safety": true
+    },
+    "human_review": "observed"
+  },
+  {
+    "case_id": "gate-safe-stop",
+    "input": "根拠不足のまま外部に断定を出そうとする",
+    "gate": {
+      "decision_relevance": true,
+      "evidence_change": false,
+      "reversibility": true,
+      "human_alignment": true,
+      "safety": false
+    },
+    "human_review": "observed"
+  },
+  {
+    "case_id": "gate-inconclusive",
+    "input": "顧客価値と次の判断への影響がまだ観測できない",
+    "gate": {
+      "decision_relevance": null,
+      "evidence_change": true,
+      "reversibility": true,
+      "human_alignment": null,
+      "safety": true
+    },
+    "human_review": "not_requested"
+  }
+]
