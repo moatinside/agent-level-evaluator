@@ -24,6 +24,7 @@
 - 自動昇格: 無効（人間の承認が必要）
 - Production接続・cron切替: 未実施（別途承認が必要）
 - 通常Agent接続前の契約整理: [docs/evidence-runtime-contract.md](docs/evidence-runtime-contract.md)
+- Capability追加前の測定可能性設計: [docs/measurement-first-capability-design.md](docs/measurement-first-capability-design.md)
 - 現行状態の確認: `python3 scripts/evaluate_current_state.py`
 
 ## Start Here
@@ -115,6 +116,7 @@ agent-level-evaluator/
 ├── docs/
 │   ├── autonomous-progression-protocol.md ← 評価から実行へ遷移する必須プロトコル
 │   ├── level-evidence-gate-design.md ← Level 1〜9の証明・昇格設計
+│   ├── measurement-first-capability-design.md ← Capability追加前の観測可能性・評価可能性ゲート
 │   └── decision-log.md ← 設計判断とPhase 2.3評価の記録
 ├── contracts/
 │   └── level-contracts.yaml ← Level契約とGateの機械可読定義
