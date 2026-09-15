@@ -21,6 +21,7 @@ scheduler changes.
 | Current state observation | `scripts/evaluate_current_state.py` | Read-only current Evidence and blocker report |
 | Legacy Phase history | `archive/legacy-phase/` and `evaluation-reports/phase23-reclassification-20260906.json` | Historical development evidence only |
 | Design decisions | `docs/decision-log.md` | Decision history and reversals |
+| Measurement-first capability design | `docs/measurement-first-capability-design.md` | Observability-first entry gate for new capabilities and evaluation items |
 | Migration audit | `scripts/audit_legacy_pipeline.py` | Legacy contamination and cutover-readiness check |
 | Actual scheduled job | External scheduler configuration | Separate operational configuration; not changed by this repository |
 

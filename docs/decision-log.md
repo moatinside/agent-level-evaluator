@@ -147,3 +147,45 @@ Phase 2.3は、旧定義に対するPhase状態としては`passed`である。�
 - Level 5〜7を評価するには、それぞれの能力契約に対応したFunctional / Failure / Operational fixtureを別途作る。
 - `verifiable: true`のような自己申告・固定値を、独立検証結果へ昇格させない。
 - Phase 2.3を継続利用する場合も、候補の新規性、実験実行、効果測定、ユーザー価値を別フィールドで保持する。
+
+## ADR-003 — Measurement-first capability evaluation
+
+- **Status**: accepted
+- **Accepted at**: 2026-09-15 JST
+- **Scope**: Capability追加、評価項目追加、Evidence設計、実務シナリオ評価
+- **Decision source**: ユーザー承認（Discord message `1549315276565381153`）
+
+### Context
+
+理想的なAgent能力を先に細分化すると、実際には観測・検知・評価できない項目が増え、形式的なチェックや根拠のないスコアへ流れるリスクがある。特に「問いの浅さ」や「CXOらしさ」のような意味概念は、テキストだけで直接判定できない場合がある。
+
+### Decisions
+
+1. Capabilityや評価項目は、理想能力からトップダウンで増やさず、観測可能性、検知方法、評価方法を確認した後に定義する。
+2. 評価設計を次の順序で実施する。
+   ```text
+   観測可能性の棚卸し
+     → 検知可能なイベント
+     → 評価可能性
+     → Capability定義
+     → 実務シナリオ適用
+   ```
+3. 評価可能性を、(A)決定的に機械評価、(B)Trace＋人間Calibration、(C)実案件Outcome、(D)現時点では評価不能の4層に分類する。
+4. Dは正式なOperational Level契約に追加せず、研究仮説として保留する。未観測は成功・失敗のいずれにも変換せず、`inconclusive`として扱う。
+5. 「問いの浅さ」などの潜在概念を直接採点せず、問いの変化、変更理由、根拠Evidence、判断への影響をTrajectoryとして観測する。
+6. 新しい項目には、観測データ、取得元、検知方法、評価方法、未観測時の扱い、誤検知・見逃しの確認方法を定義する採用ゲートを適用する。
+7. Level 1〜9の既存定義とEvidence Gate、Human Promotion Gate、Production／cron承認境界は維持する。本ADRはLevelの再定義や自動昇格を意味しない。
+
+### Consequences
+
+- Capability一覧は少数から始まり、観測経路の実証後にのみ拡張する。
+- Tool、Trajectory、Outcome、保存・検知状態を分離して評価する。
+- テキスト上の更新確認と、事業上の有効性確認を別Evidenceとして扱う。
+- 直接測れない概念を、説明文の増加だけでPassにすることを防ぐ。
+- 評価器の不足とAgent能力の不足を別々に切り分けられる。
+
+### Required follow-up
+
+- `docs/measurement-first-capability-design.md`に従い、現行TraceとCollectorの観測可能性インベントリを作成する。
+- 新しいCapabilityを`contracts/level-contracts.yaml`へ追加する前に、採用ゲートを通過させる。
+- Shadow環境で、正常、失敗、未観測、捕捉失敗、評価不整合を分離して確認する。
