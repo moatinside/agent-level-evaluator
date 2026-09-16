@@ -73,6 +73,41 @@ def evaluate(case: dict[str, Any], agent_configuration_id: str, evaluator_config
         if not basis.startswith("feedback:"):
             raise ValueError("user feedback basis must be a reference")
 
+    calibration = case.get("human_calibration")
+    if not isinstance(calibration, list) or len(calibration) != 5:
+        raise ValueError("human_calibration must contain exactly five assessments")
+    calibration_axes = {
+        "initial_question_capture",
+        "evidence_driven_update",
+        "question_update_rationale",
+        "decision_proximity",
+        "feedback_interpretation",
+    }
+    calibration_statuses = {"pass", "partial", "fail", "not_observable"}
+    normalized_calibration = []
+    for item in calibration:
+        if not isinstance(item, dict):
+            raise ValueError("each human calibration item must be an object")
+        axis = require_string(item.get("axis"), "human calibration axis")
+        status = require_string(item.get("status"), "human calibration status")
+        rationale_ref = require_string(item.get("rationale_ref"), "human calibration rationale_ref")
+        if axis not in calibration_axes or status not in calibration_statuses:
+            raise ValueError("invalid human calibration axis or status")
+        if not rationale_ref.startswith("calibration:"):
+            raise ValueError("human calibration rationale_ref must be a reference")
+        normalized_calibration.append({"axis": axis, "status": status, "rationale_ref": rationale_ref})
+    if {item["axis"] for item in normalized_calibration} != calibration_axes:
+        raise ValueError("human calibration axes must be unique and complete")
+
+    scope = case.get("scope_boundary")
+    if not isinstance(scope, dict):
+        raise ValueError("scope_boundary must be an object")
+    scope_status = require_string(scope.get("status"), "scope_boundary status")
+    deferred = scope.get("deferred_topics")
+    reason_ref = require_string(scope.get("reason_ref"), "scope_boundary reason_ref")
+    if scope_status != "intentionally_deferred" or not isinstance(deferred, list) or not deferred or not reason_ref.startswith("scope:"):
+        raise ValueError("scope boundary must record intentional deferral and reason")
+
     acceptance = {
         "trace_present": True,
         "question_initial_present": bool(initial),
@@ -86,6 +121,10 @@ def evaluate(case: dict[str, Any], agent_configuration_id: str, evaluator_config
         "raw_text_persisted": False,
         "external_delivery": False,
         "automatic_promotion": False,
+        "human_calibration_connected": True,
+        "human_calibration_statuses": {item["axis"]: item["status"] for item in normalized_calibration},
+        "scope_boundary": scope_status,
+        "deferred_topic_count": len(deferred),
     }
     passed = all([
         acceptance["trace_present"],

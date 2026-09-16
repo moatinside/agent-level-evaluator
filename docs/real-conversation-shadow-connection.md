@@ -50,7 +50,22 @@ PYTHONPATH=. uv run --with pytest --with pyyaml python scripts/evidence_report.p
   --summary
 ```
 
-## 今回確認できたこと
+## 人間校正結果
+
+ユーザー評価を構造化し、次のように記録した。
+
+```text
+initial_question_capture  = pass
+ evidence_driven_update   = partial
+ question_update_rationale= partial
+ decision_proximity       = partial
+ feedback_interpretation  = pass
+```
+
+`partial`は失敗ではない。問いの更新は対話による共同形成であり、Hermes単体の自律的なEvidence更新や事業成果までは観測できない、という意味である。
+
+また、顧客購買意思・予算・実採算は未達として扱わず、会社プログラムとの並行実施と今回の壁打ち範囲を理由に、`intentionally_deferred`として記録した。
+
 
 - Trace構造が存在する
 - 問いが2回更新されている
