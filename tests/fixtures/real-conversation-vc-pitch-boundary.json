@@ -1,0 +1,87 @@
+{
+  "scenario_id": "vc-pitch-internal-boundary-correction",
+  "source_class": "real_new_business_brainstorm",
+  "question_initial": "should_vc_pitch_include_counterarguments_and_reservations",
+  "question_current": "how_to_separate_vc_pitch_ts_unagu_readiness_and_internal_review_evidence",
+  "question_state": "provisionally_locked",
+  "decision_status": "provisionally_locked",
+  "question_changes": [
+    {
+      "before_ref": "question:vc-pitch-include-rebuttals",
+      "after_ref": "question:translate-uncertainty-for-vc-audience",
+      "reason": "user_challenged_the_assumption_that_internal_review_terms_belong_in_pitch_body",
+      "triggered_by_evidence_refs": [
+        "evidence:user-question-on-vc-pitch-language",
+        "evidence:vc-pitch-outline-unavailable-404"
+      ]
+    },
+    {
+      "before_ref": "question:single-pitch-readiness-layer",
+      "after_ref": "question:three-layer-pitch-readiness-and-evidence-model",
+      "reason": "user_added_tsunagu_readiness_requirements_and_rejected_moat-negative-list_in_vc_copy",
+      "triggered_by_evidence_refs": [
+        "evidence:user-tsunagu-ten-item-requirement",
+        "evidence:user-rejection-of-internal-moat-language",
+        "evidence:user-explicit-vc-audience-boundary"
+      ]
+    }
+  ],
+  "evidence_refs": [
+    "evidence:user-question-on-vc-pitch-language",
+    "evidence:user-tsunagu-ten-item-requirement",
+    "evidence:user-rejection-of-internal-moat-language",
+    "evidence:user-explicit-vc-audience-boundary"
+  ],
+  "decision_impact": "separated_external_vc_narrative_from_ts_unagu_readiness_and_internal_evidence_ledger",
+  "next_validation": "validate_seed_stage_pitch_structure_against_ts_unagu_requirements_without_leaking_internal_review_language",
+  "scope_boundary": {
+    "status": "intentionally_deferred",
+    "deferred_topics": [
+      "external_investor_reaction",
+      "customer_purchase_evidence",
+      "pitch_conversion_or_fundraising_outcome"
+    ],
+    "reason_ref": "scope:conversation-review-before-external-pitch-validation"
+  },
+  "human_calibration": [
+    {
+      "axis": "initial_question_capture",
+      "status": "partial",
+      "rationale_ref": "calibration:initial-question-was-too-binary-and-missed-uncertainty"
+    },
+    {
+      "axis": "evidence_driven_update",
+      "status": "pass",
+      "rationale_ref": "calibration:user-conversation-evidence-changed-the-structure"
+    },
+    {
+      "axis": "question_update_rationale",
+      "status": "partial",
+      "rationale_ref": "calibration:update-reason-was-user-directed"
+    },
+    {
+      "axis": "decision_proximity",
+      "status": "partial",
+      "rationale_ref": "calibration:seed-stage-research-made-the-output-more-concrete"
+    },
+    {
+      "axis": "feedback_interpretation",
+      "status": "partial",
+      "rationale_ref": "calibration:correction-was-reflected-with-limited-certainty"
+    }
+  ],
+  "user_feedback": [
+    {
+      "kind": "correction",
+      "basis": "feedback:user-rejection-of-internal-review-terms-in-vc-pitch"
+    },
+    {
+      "kind": "rejection",
+      "basis": "feedback:user-rejection-of-mixing-vc-and-internal-layers"
+    },
+    {
+      "kind": "acceptance",
+      "basis": "feedback:user-acceptance-of-three-layer-separation"
+    }
+  ]
+}

@@ -77,6 +77,25 @@ class RealConversationShadowTests(unittest.TestCase):
                     self.assertEqual(record["acceptance_results"]["decision_status"], expected_status)
                     self.assertNotIn("transcript", record)
                     self.assertNotIn("session_id", record)
+    def test_vc_pitch_boundary_case_uses_user_calibration(self) -> None:
+        case = ROOT / "tests" / "fixtures" / "real-conversation-vc-pitch-boundary.json"
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "operational-evidence" / "vc-pitch.jsonl"
+            command = [
+                sys.executable,
+                str(RUNNER),
+                "--case", str(case),
+                "--output", str(output),
+                "--agent-configuration-id", "sha256:" + "a" * 64,
+                "--evaluator-configuration-id", "sha256:" + "b" * 64,
+            ]
+            completed = subprocess.run(command, capture_output=True, text=True, check=False)
+            self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+            record = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(record["result"], "passed")
+            self.assertEqual(record["acceptance_results"]["human_calibration_statuses"]["initial_question_capture"], "partial")
+            self.assertEqual(record["acceptance_results"]["human_calibration_statuses"]["evidence_driven_update"], "pass")
+            self.assertEqual(record["acceptance_results"]["semantic_review_status"], "required")
 
 
 if __name__ == "__main__":

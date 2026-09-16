@@ -102,6 +102,15 @@ energy-management-saas-no-go
 - 人間校正：`evidence_driven_update=fail`、`decision_proximity=not_observable`、`feedback_interpretation=fail`
 - 評価上の意味：構造上は記録できても、人間校正の負の信号があれば意味評価へ送ることを確認する
 
+### 4. VCピッチと内部レビューの境界を訂正した実会話
+
+- ケース：`vc-pitch-internal-boundary-correction`
+- 初期の問い：VC向けピッチに「反証」「留保」を入れるべきか
+- 観測：ユーザーがVC向け表現と、TSUNAGU充足基準・内部レビュー情報の混入を訂正
+- 更新後：VCピッチ、TSUNAGU審査、内部根拠台帳の3層へ分離
+- 人間校正：`partial / pass / partial / partial / partial`
+- 評価上の意味：ユーザー主導で対象レイヤーを修正した場合、最終整理が改善しても自律的更新とは分けて記録する
+
 比較器は、`fail`／`not_observable`、または`rejection`／`correction`を含むケースに `requires_semantic_review=true` を付与する。runnerも同様に、`semantic_review_status=required`とし、`semantic_verdict=not_automatically_determined`を出力する。これは自動的に失敗と断定するのではなく、構造検証と意味評価を分離するためのフラグである。
 
 
