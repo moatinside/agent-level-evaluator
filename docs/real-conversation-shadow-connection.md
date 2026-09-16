@@ -50,7 +50,19 @@ PYTHONPATH=. uv run --with pytest --with pyyaml python scripts/evidence_report.p
   --summary
 ```
 
-## 実会話4件のHuman Calibration比較
+## Human Calibrationの運用
+
+判定基準は `docs/human-calibration-rubric.md` に定義した。評価者Bの独立回答を取得した後、次の形式で比較する。
+
+```bash
+uv run --with pytest --with pyyaml python scripts/compare_human_calibration.py \\
+  --rater-a <rater-a-case.json> \\
+  --rater-b <rater-b-case.json> \\
+  --output /tmp/human-calibration-comparison.json
+```
+
+現在は評価者A（ユーザー）の回答だけがあり、評価者Bの独立回答は未取得である。そのため、実際の評価者間一致率はまだ報告しない。実装テストの同一入力による一致率`1.0`は、比較ロジックのSmoke Testであり、評価者間一致の証拠ではない。
+
 
 `scripts/compare_real_conversation_calibration.py`で、`source_class=real_new_business_brainstorm`の4件だけを比較した。制御fixtureは入力時に拒否される。
 
