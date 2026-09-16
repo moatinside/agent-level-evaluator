@@ -50,7 +50,31 @@ PYTHONPATH=. uv run --with pytest --with pyyaml python scripts/evidence_report.p
   --summary
 ```
 
-## 3ケース比較の結果
+## 実会話4件のHuman Calibration比較
+
+`scripts/compare_real_conversation_calibration.py`で、`source_class=real_new_business_brainstorm`の4件だけを比較した。制御fixtureは入力時に拒否される。
+
+```text
+initial_question_capture
+  pass 2 / partial 2
+
+evidence_driven_update
+  pass 2 / partial 2
+
+question_update_rationale
+  pass 2 / partial 2
+
+decision_proximity
+  partial 4
+
+feedback_interpretation
+  pass 2 / partial 1 / not_observable 1
+```
+
+この分布から直接言えるのは、4件の人間評価において、初期問い・Evidence対応・更新理由には`pass`と`partial`のばらつきがあり、事業判断への接近は全件`partial`だった、ということまでである。ケース数が少なく、評価者も単一ユーザーのため、評価器の再現性や一般化はまだ証明しない。
+
+また、構造Evaluatorとの自動一致率は算出していない。現在の自動EvaluatorはTraceの存在・変化数・Evidence参照を検証するもので、Human Calibrationの5軸に対応する意味判定ラベルを持たないためである。
+
 
 比較レポートは `scripts/compare_real_conversation_cases.py` で生成する。
 
