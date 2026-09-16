@@ -111,6 +111,7 @@ def evaluate(case: dict[str, Any], agent_configuration_id: str, evaluator_config
     if scope_status != "intentionally_deferred" or not isinstance(deferred, list) or not deferred or not reason_ref.startswith("scope:"):
         raise ValueError("scope boundary must record intentional deferral and reason")
 
+    semantic_review_required = any(item["status"] != "pass" for item in normalized_calibration) or bool({"rejection", "correction"} & set(feedback_types))
     acceptance = {
         "trace_present": True,
         "question_initial_present": bool(initial),
@@ -125,6 +126,7 @@ def evaluate(case: dict[str, Any], agent_configuration_id: str, evaluator_config
         "raw_text_persisted": False,
         "external_delivery": False,
         "automatic_promotion": False,
+        "semantic_review_status": "required" if semantic_review_required else "not_required",
         "human_calibration_connected": True,
         "human_calibration_statuses": {item["axis"]: item["status"] for item in normalized_calibration},
         "scope_boundary": scope_status,
@@ -169,6 +171,7 @@ def evaluate(case: dict[str, Any], agent_configuration_id: str, evaluator_config
         "validator_report_ref": f"validator:{sha256_ref(acceptance)[7:]}",
         "revision_diff_ref": f"question-change:{sha256_ref(changes)[7:]}",
         "result": result,
+        "semantic_verdict": "not_automatically_determined",
         "acceptance_results": acceptance,
         "negative_evidence": [
             {"type": "user_correction_observed", "count": feedback_types.count("correction")},

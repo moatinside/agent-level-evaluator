@@ -102,7 +102,7 @@ energy-management-saas-no-go
 - 人間校正：`evidence_driven_update=fail`、`decision_proximity=not_observable`、`feedback_interpretation=fail`
 - 評価上の意味：構造上は記録できても、人間校正の負の信号があれば意味評価へ送ることを確認する
 
-比較器は、`fail`／`not_observable`、または`rejection`／`correction`を含むケースに `requires_semantic_review=true` を付与する。これは自動的に失敗と断定するのではなく、構造検証と意味評価を分離するためのフラグである。
+比較器は、`fail`／`not_observable`、または`rejection`／`correction`を含むケースに `requires_semantic_review=true` を付与する。runnerも同様に、`semantic_review_status=required`とし、`semantic_verdict=not_automatically_determined`を出力する。これは自動的に失敗と断定するのではなく、構造検証と意味評価を分離するためのフラグである。
 
 
 ユーザー評価を構造化し、次のように記録した。

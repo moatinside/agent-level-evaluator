@@ -9,7 +9,7 @@
     "capability_contract_version", "agent_configuration_id",
     "evaluator_configuration_id", "evidence_class", "scenario_id",
     "trigger_origin", "environment_class", "started_at", "ended_at",
-    "input_ref", "expected_contract", "result", "reviewer",
+    "input_ref", "expected_contract", "result", "semantic_verdict", "reviewer",
     "integrity_hash"
   ],
   "properties": {
@@ -37,6 +37,7 @@
     "revision_diff_ref": {"type": "string"},
     "final_output_ref": {"type": "string"},
     "result": {"type": "string", "enum": ["passed", "failed", "blocked", "inconclusive"]},
+    "semantic_verdict": {"type": "string", "enum": ["not_automatically_determined"]},
     "acceptance_results": {"type": "object"},
     "negative_evidence": {"type": "array", "items": {"type": "object"}},
     "side_effects": {"type": "array", "items": {"type": "string"}},
