@@ -50,7 +50,32 @@ PYTHONPATH=. uv run --with pytest --with pyyaml python scripts/evidence_report.p
   --summary
 ```
 
-## 追加した異質ケース
+## 3ケース比較の結果
+
+比較レポートは `scripts/compare_real_conversation_cases.py` で生成する。
+
+```text
+embedded-connectivity-pivot
+  判断状態: provisionally_locked
+  校正: pass / partial / partial / partial / pass
+
+customer-provider-classification-rollback
+  判断状態: on_hold
+  校正: partial / partial / pass / partial / pass
+
+energy-management-saas-no-go
+  判断状態: no_go
+  校正: pass / pass / pass / partial / not_observable
+```
+
+今回の比較で確認できたのは、次の構造差である。
+
+- ユーザー主導の問いの共同形成は、Evidence単独の更新とは別に記録できる
+- ユーザー訂正による方針の巻き戻しは、`on_hold`として保持できる
+- 調査結果による追求停止は、`no_go`として保持できる
+- `pass`は構造化・記録経路の成立を示すだけで、判断の実質的正しさや事業成果は示さない
+- 顧客購買、予算、採算、実際の事業効果は、別の外部Outcome Evidenceが必要
+
 
 ### 1. ユーザー訂正で方針を戻したケース
 
