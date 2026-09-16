@@ -1,0 +1,85 @@
+{
+  "scenario_id": "customer-provider-classification-rollback",
+  "source_class": "real_new_business_brainstorm",
+  "question_initial": "can_existing_partner_sell_the_service",
+  "question_current": "which_party_has_the_customer_pain_and_buying_authority",
+  "question_state": "provisionally_locked",
+  "decision_status": "on_hold",
+  "question_changes": [
+    {
+      "before_ref": "question:partner-led-resale",
+      "after_ref": "question:customer-owner-and-buyer",
+      "reason": "user_corrected_channel_and_end_user_roles",
+      "triggered_by_evidence_refs": [
+        "evidence:user-business-boundary-correction",
+        "evidence:user-customer-provider-classification-correction"
+      ]
+    },
+    {
+      "before_ref": "question:assume_partner_demand",
+      "after_ref": "question:validate_end_user_pain_before_partner_motion",
+      "reason": "direction_returned_to_customer_problem_after_overbroad_partner_hypothesis",
+      "triggered_by_evidence_refs": [
+        "evidence:user-rejection-of-overbroad-partner-frame",
+        "evidence:existing-channel-incentive-constraints"
+      ]
+    }
+  ],
+  "evidence_refs": [
+    "evidence:user-correction-on-business-boundary",
+    "evidence:user-correction-on-customer-and-provider-classification",
+    "evidence:channel-incentive-constraints",
+    "evidence:customer-problem-hypothesis"
+  ],
+  "decision_impact": "returned_from_partner_first_hypothesis_to_customer_problem_and_role_boundary_validation",
+  "next_validation": "validate_end_user_pain_buyer_owner_and_partner_incentive_before_resuming_channel_design",
+  "scope_boundary": {
+    "status": "intentionally_deferred",
+    "deferred_topics": [
+      "partner_contract_design",
+      "resale_compensation_model"
+    ],
+    "reason_ref": "scope:customer-problem-before-channel-design"
+  },
+  "human_calibration": [
+    {
+      "axis": "initial_question_capture",
+      "status": "partial",
+      "rationale_ref": "calibration:initial-frame-was-corrected-by-user"
+    },
+    {
+      "axis": "evidence_driven_update",
+      "status": "partial",
+      "rationale_ref": "calibration:update-was-triggered-by-user-correction"
+    },
+    {
+      "axis": "question_update_rationale",
+      "status": "pass",
+      "rationale_ref": "calibration:rollback-followed-explicit-correction"
+    },
+    {
+      "axis": "decision_proximity",
+      "status": "partial",
+      "rationale_ref": "calibration:role-boundary-was-clarified-but-buying-evidence-deferred"
+    },
+    {
+      "axis": "feedback_interpretation",
+      "status": "pass",
+      "rationale_ref": "calibration:correction-was-reflected-in-direction"
+    }
+  ],
+  "user_feedback": [
+    {
+      "kind": "correction",
+      "basis": "feedback:user-correction-on-business-boundary"
+    },
+    {
+      "kind": "rejection",
+      "basis": "feedback:user-rejection-of-overbroad-partner-frame"
+    },
+    {
+      "kind": "acceptance",
+      "basis": "feedback:user-acceptance-of-return-to-customer-problem"
+    }
+  ]
+}

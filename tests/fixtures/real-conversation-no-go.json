@@ -1,0 +1,80 @@
+{
+  "scenario_id": "energy-management-saas-no-go",
+  "source_class": "real_new_business_brainstorm",
+  "question_initial": "can_energy_management_saas_be_built_for_corporate_customers",
+  "question_current": "should_energy_management_saas_be_pursued_now",
+  "question_state": "closed_pending_reassessment",
+  "decision_status": "no_go",
+  "question_changes": [
+    {
+      "before_ref": "question:build_energy_management_saas",
+      "after_ref": "question:prove_recurring_payer_and_operational_owner",
+      "reason": "research_exposed_gap_between_market_need_and_paying_responsible_owner",
+      "triggered_by_evidence_refs": [
+        "evidence:official-energy-policy-and-market-sources",
+        "evidence:industry-player-research",
+        "evidence:customer-and-operator-structure-analysis"
+      ]
+    },
+    {
+      "before_ref": "question:prove_recurring_payer_and_operational_owner",
+      "after_ref": "question:do_not_continue_without_payer_and_delivery_evidence",
+      "reason": "available evidence did not support continued pursuit within the program scope",
+      "triggered_by_evidence_refs": [
+        "evidence:customer-payer-responsibility-gap",
+        "evidence:operational-delivery-burden",
+        "evidence:insufficient-validation-evidence"
+      ]
+    }
+  ],
+  "evidence_refs": [
+    "evidence:official-energy-policy-and-market-sources",
+    "evidence:industry-player-research",
+    "evidence:customer-payer-responsibility-gap",
+    "evidence:operational-delivery-burden"
+  ],
+  "decision_impact": "ended_current_energy_management_saas_exploration_and_separated_future_reassessment_conditions",
+  "next_validation": "reassess_only_if_a_named_payer_operational_owner_and_delivery_path_emerge",
+  "scope_boundary": {
+    "status": "intentionally_deferred",
+    "deferred_topics": [
+      "customer_interviews_for_reassessment",
+      "sales_pilot",
+      "implementation_cost_validation"
+    ],
+    "reason_ref": "scope:program-priority-and-no-go-boundary"
+  },
+  "human_calibration": [
+    {
+      "axis": "initial_question_capture",
+      "status": "pass",
+      "rationale_ref": "calibration:initial-market-entry-question-was-explicit"
+    },
+    {
+      "axis": "evidence_driven_update",
+      "status": "pass",
+      "rationale_ref": "calibration:research-changed-the-required-proof"
+    },
+    {
+      "axis": "question_update_rationale",
+      "status": "pass",
+      "rationale_ref": "calibration:no-go-followed-payer-and-delivery-gap"
+    },
+    {
+      "axis": "decision_proximity",
+      "status": "partial",
+      "rationale_ref": "calibration:no-go-was-a-program-decision-not-market-proof"
+    },
+    {
+      "axis": "feedback_interpretation",
+      "status": "not_observable",
+      "rationale_ref": "calibration:explicit-user-feedback-not-preserved-in-sanitized-case"
+    }
+  ],
+  "user_feedback": [
+    {
+      "kind": "acceptance",
+      "basis": "feedback:acceptance-of-current-exploration-closure"
+    }
+  ]
+}

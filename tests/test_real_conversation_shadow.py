@@ -49,6 +49,30 @@ class RealConversationShadowTests(unittest.TestCase):
             self.assertIn("positive_signal", acceptance["user_feedback_types"])
             self.assertNotIn("session_id", record)
             self.assertNotIn("transcript", record)
+    def test_distinct_trajectory_outcomes_are_preserved(self) -> None:
+        cases = [
+            (ROOT / "tests" / "fixtures" / "real-conversation-correction-rollback.json", "on_hold"),
+            (ROOT / "tests" / "fixtures" / "real-conversation-no-go.json", "no_go"),
+        ]
+        for case, expected_status in cases:
+            with self.subTest(case=case.name):
+                with tempfile.TemporaryDirectory() as directory:
+                    output = Path(directory) / "operational-evidence" / f"{case.stem}.jsonl"
+                    command = [
+                        sys.executable,
+                        str(RUNNER),
+                        "--case", str(case),
+                        "--output", str(output),
+                        "--agent-configuration-id", "sha256:" + "a" * 64,
+                        "--evaluator-configuration-id", "sha256:" + "b" * 64,
+                    ]
+                    completed = subprocess.run(command, capture_output=True, text=True, check=False)
+                    self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+                    record = json.loads(output.read_text(encoding="utf-8"))
+                    self.assertEqual(record["result"], "passed")
+                    self.assertEqual(record["acceptance_results"]["decision_status"], expected_status)
+                    self.assertNotIn("transcript", record)
+                    self.assertNotIn("session_id", record)
 
 
 if __name__ == "__main__":

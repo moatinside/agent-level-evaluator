@@ -37,6 +37,9 @@ def evaluate(case: dict[str, Any], agent_configuration_id: str, evaluator_config
     initial = require_string(case.get("question_initial"), "question_initial")
     current = require_string(case.get("question_current"), "question_current")
     state = require_string(case.get("question_state"), "question_state")
+    decision_status = case.get("decision_status", "provisionally_locked")
+    if decision_status not in {"provisionally_locked", "on_hold", "no_go", "go"}:
+        raise ValueError("unsupported decision_status")
     impact = require_string(case.get("decision_impact"), "decision_impact")
     next_validation = require_string(case.get("next_validation"), "next_validation")
     changes = case.get("question_changes")
@@ -115,6 +118,7 @@ def evaluate(case: dict[str, Any], agent_configuration_id: str, evaluator_config
         "question_change_count": valid_changes,
         "evidence_linked_to_change": True,
         "decision_impact_present": bool(impact),
+        "decision_status": decision_status,
         "next_validation_present": bool(next_validation),
         "user_feedback_connected": True,
         "user_feedback_types": sorted(set(feedback_types)),
