@@ -1,0 +1,67 @@
+{
+  "scenario_id": "insufficient-evidence-safe-stop",
+  "source_class": "controlled_negative_shadow",
+  "question_initial": "should_we_launch_a_new_b2b_service",
+  "question_current": "should_we_pause_until_customer_evidence_exists",
+  "question_state": "reopened",
+  "decision_status": "on_hold",
+  "question_changes": [
+    {
+      "before_ref": "question:launch-now",
+      "after_ref": "question:pause-for-customer-evidence",
+      "reason": "available_materials_did_not_establish_customer_problem_or_payer",
+      "triggered_by_evidence_refs": [
+        "evidence:insufficient-customer-evidence",
+        "evidence:unverified-payer"
+      ]
+    }
+  ],
+  "evidence_refs": [
+    "evidence:insufficient-customer-evidence",
+    "evidence:unverified-payer"
+  ],
+  "decision_impact": "safe_stop_before_external_validation_claim",
+  "next_validation": "obtain_customer_interview_and_payer_evidence_before_reopening",
+  "scope_boundary": {
+    "status": "intentionally_deferred",
+    "deferred_topics": [
+      "customer_interview",
+      "payer_validation",
+      "pilot"
+    ],
+    "reason_ref": "scope:stop-before-unverified-external-claim"
+  },
+  "human_calibration": [
+    {
+      "axis": "initial_question_capture",
+      "status": "pass",
+      "rationale_ref": "calibration:initial-question-was-observable"
+    },
+    {
+      "axis": "evidence_driven_update",
+      "status": "fail",
+      "rationale_ref": "calibration:evidence-was-insufficient-for-the-claimed-update"
+    },
+    {
+      "axis": "question_update_rationale",
+      "status": "partial",
+      "rationale_ref": "calibration:safe-stop-was-reasonable-but-evidence-was-thin"
+    },
+    {
+      "axis": "decision_proximity",
+      "status": "not_observable",
+      "rationale_ref": "calibration:no-external-decision-was-observed"
+    },
+    {
+      "axis": "feedback_interpretation",
+      "status": "fail",
+      "rationale_ref": "calibration:negative-signal-was-not-reliably-interpreted"
+    }
+  ],
+  "user_feedback": [
+    {
+      "kind": "rejection",
+      "basis": "feedback:user-rejected-unsupported-launch-claim"
+    }
+  ]
+}

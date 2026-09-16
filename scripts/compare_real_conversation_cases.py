@@ -41,6 +41,7 @@ def summarize(path: Path) -> dict[str, Any]:
     calibration = {item["axis"]: item["status"] for item in case["human_calibration"]}
     feedback = sorted({item["kind"] for item in case["user_feedback"]})
     scope = case["scope_boundary"]
+    non_pass_axes = sorted(axis for axis, status in calibration.items() if status != "pass")
     return {
         "scenario_id": case["scenario_id"],
         "decision_status": case.get("decision_status", "provisionally_locked"),
@@ -48,7 +49,10 @@ def summarize(path: Path) -> dict[str, Any]:
         "question_current": case["question_current"],
         "question_change_count": len(case["question_changes"]),
         "human_calibration": calibration,
+        "human_non_pass_axes": non_pass_axes,
         "user_feedback_types": feedback,
+        "negative_feedback_observed": bool({"rejection", "correction"} & set(feedback)),
+        "requires_semantic_review": bool(non_pass_axes or {"rejection", "correction"} & set(feedback)),
         "deferred_topic_count": len(scope["deferred_topics"]),
         "decision_impact": case["decision_impact"],
         "semantic_outcome_proven": False,

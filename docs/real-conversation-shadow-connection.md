@@ -93,7 +93,16 @@ energy-management-saas-no-go
 - 判断状態：`no_go`
 - 評価上の意味：調査結果を、未達ではなく現時点の追求停止と将来再評価条件へ接続できるかを見る
 
-両ケースとも、実会話本文・セッション識別子・認証情報を保存せず、構造化した観測と参照名だけを保存する。`no_go`や`on_hold`も、構造が記録できたことを示すShadow結果であり、判断自体の正しさや市場成果を証明するものではない。
+### 3. Evidence不足で安全停止した制御ケース
+
+- ケース：`insufficient-evidence-safe-stop`
+- 種別：`controlled_negative_shadow`（実会話ではない）
+- 観測：顧客課題・支払者の根拠が不足したため、外部検証を主張せず保留
+- 判断状態：`on_hold`
+- 人間校正：`evidence_driven_update=fail`、`decision_proximity=not_observable`、`feedback_interpretation=fail`
+- 評価上の意味：構造上は記録できても、人間校正の負の信号があれば意味評価へ送ることを確認する
+
+比較器は、`fail`／`not_observable`、または`rejection`／`correction`を含むケースに `requires_semantic_review=true` を付与する。これは自動的に失敗と断定するのではなく、構造検証と意味評価を分離するためのフラグである。
 
 
 ユーザー評価を構造化し、次のように記録した。
