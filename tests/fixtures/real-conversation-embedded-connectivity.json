@@ -1,0 +1,85 @@
+{
+  "scenario_id": "embedded-connectivity-pivot",
+  "source_class": "real_new_business_brainstorm",
+  "question_initial": "mobile_franchise_entry",
+  "question_current": "terminal_lifecycle_unit_economics_and_reproducibility",
+  "question_state": "provisionally_locked",
+  "question_changes": [
+    {
+      "before_ref": "question:mobile-franchise",
+      "after_ref": "question:embedded-connectivity",
+      "reason": "existing_business_boundary_and_internal_friction_observed",
+      "triggered_by_evidence_refs": [
+        "evidence:meeting-record-structure",
+        "evidence:existing-mobile-plan"
+      ]
+    },
+    {
+      "before_ref": "question:local-consultation-window",
+      "after_ref": "question:local-touchpoint-plus-specialist-backend",
+      "reason": "competitor_and_unit-economics_research_showed_front_door_alone_is_not_a_moat",
+      "triggered_by_evidence_refs": [
+        "evidence:repair-franchise-research",
+        "evidence:used-device-market-research"
+      ]
+    }
+  ],
+  "evidence_refs": [
+    "evidence:internal-meeting-record",
+    "evidence:official-market-source",
+    "evidence:competitor-research",
+    "evidence:unit-economics-model"
+  ],
+  "decision_impact": "shifted_from_mobile_franchise_request_to_independent_terminal_lifecycle_validation",
+  "next_validation": "validate_customer_entry_unit_economics_backend_responsibility_and_multi-site_reproducibility",
+  "scope_boundary": {
+    "status": "intentionally_deferred",
+    "deferred_topics": [
+      "customer_purchase_intent",
+      "budget_and_decision_path",
+      "actual_unit_economics"
+    ],
+    "reason_ref": "scope:parallel-company-program-and-conversation-boundary"
+  },
+  "human_calibration": [
+    {
+      "axis": "initial_question_capture",
+      "status": "pass",
+      "rationale_ref": "calibration:question-refined-through-dialogue"
+    },
+    {
+      "axis": "evidence_driven_update",
+      "status": "partial",
+      "rationale_ref": "calibration:update-was-dialogue-assisted"
+    },
+    {
+      "axis": "question_update_rationale",
+      "status": "partial",
+      "rationale_ref": "calibration:rationale-followed-user-direction"
+    },
+    {
+      "axis": "decision_proximity",
+      "status": "partial",
+      "rationale_ref": "calibration:closer-but-outcome-unobserved"
+    },
+    {
+      "axis": "feedback_interpretation",
+      "status": "pass",
+      "rationale_ref": "calibration:correction-and-affirmation-interpreted"
+    }
+  ],
+  "user_feedback": [
+    {
+      "kind": "correction",
+      "basis": "feedback:user-correction-on-business-boundary"
+    },
+    {
+      "kind": "correction",
+      "basis": "feedback:user-correction-on-customer-and-provider-classification"
+    },
+    {
+      "kind": "positive_signal",
+      "basis": "feedback:user-acceptance-of-pivot-and-pitch-center-pin"
+    }
+  ]
+}
