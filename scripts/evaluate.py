@@ -3,7 +3,7 @@
 Agent Level Self-Evaluation Script
 
 依存ゼロ（Python標準ライブラリのみ）。
-6軸のアンケートに答えると、現在のエージェントレベルを推定する。
+実行自律性の診断と協働・拡張学習の段階を入力し、2軸の評価レポートを生成する。
 
 自己申告時に evals/run_evals.py を同時実行し、客観指標（スキル単位の
 機械的検証結果）をレポートに埋め込む。主観スコアを客観数値で裏付ける。
@@ -102,6 +102,15 @@ AXES = [
     },
 ]
 
+COLLABORATION_STAGES = [
+    "人間の意図受領",
+    "判断基準の外化",
+    "複数視点の共同統合",
+    "批評による修正",
+    "問い・対象の拡張",
+    "新しい実践の定着・一般化",
+]
+
 
 def ask_score(axis: dict) -> int:
     """1軸のスコアをユーザーに質問する"""
@@ -174,107 +183,108 @@ def format_evals_section(eval_results: list | None) -> str:
     return "\n".join(lines)
 
 
-def determine_level(scores: dict) -> int:
-    """スコアから総合レベルを判定"""
-    if scores.get("self_evolution", 0) >= 60:
-        return 7
-    if scores.get("agentic_search", 0) >= 60:
-        return 6
-    if scores.get("self_validate", 0) >= 60:
-        return 5
-    if scores.get("ensemble", 0) >= 60:
-        return 4
-    if scores.get("routing", 0) >= 60:
-        return 3
-    if scores.get("workflow", 0) >= 60:
+def determine_execution_level(scores: dict) -> int:
+    """実行自律性の連続して確認できたLevelを返す。"""
+    if scores.get("workflow", 0) < 60:
+        return 1
+    if scores.get("routing", 0) < 60:
         return 2
-    return 1
+    if scores.get("ensemble", 0) < 60:
+        return 3
+    if scores.get("self_validate", 0) < 60:
+        return 4
+    if scores.get("agentic_search", 0) < 60:
+        return 5
+    if scores.get("self_evolution", 0) < 60:
+        return 6
+    return 7
 
 
-def generate_report(scores: dict, level: int, output_path: str = "", eval_results: list | None = None):
-    """評価レポートを生成"""
+def determine_level(scores: dict) -> int:
+    """後方互換用。新規レポートでは単一Levelを使用しない。"""
+    return determine_execution_level(scores)
+
+
+def ask_collaboration_stage() -> int:
+    """協働・拡張学習の観測段階を質問する。"""
+    print("\\n協働・拡張学習の観測段階を選択してください。")
+    for i, stage in enumerate(COLLABORATION_STAGES, 1):
+        print(f"  {i}: {stage}")
+    print("  0: 未観測")
+    while True:
+        try:
+            value = int(input("\\n段階 (0-6) → "))
+            if 0 <= value <= len(COLLABORATION_STAGES):
+                return value
+            print(f"0〜{len(COLLABORATION_STAGES)}の範囲で入力してください")
+        except ValueError:
+            print("数値を入力してください")
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return -1
+
+
+def generate_report(scores: dict, level: int, output_path: str = "", eval_results: list | None = None, collaboration_stage: int = 0):
+    """2軸評価レポートを生成する。"""
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
-    
+    collaboration = (
+        COLLABORATION_STAGES[collaboration_stage - 1]
+        if 0 < collaboration_stage <= len(COLLABORATION_STAGES)
+        else "未観測"
+    )
+
     report = f"""# Agent Level Evaluation Report
 
 **評価日時:** {now}
-**方法:** 6軸セルフアセスメント + スキル機械検証 (evals)
+**方法:** 実行自律性の診断 + 協働・拡張学習の段階評価 + スキル機械検証 (evals)
 
-## スコア
+## 評価トラック
+
+- **実行自律性:** Level {level}相当（連続Gateの診断値。実運用Levelの確定ではない）
+- **協働・拡張学習:** {collaboration}
+- **因果順序:** 未評価（`Evidence → Agent update → user judgment` または `user judgment → Agent structuring` を記録する）
+- **51点ゲート:** 未評価（人間との共同形成とEvidenceの校正が必要）
+- **単一総合Level:** 断定しない
+
+## 診断スコア（補助指標）
+
+| 診断項目 | スコア | 補助表示 |
+|----------|--------|----------|
 """
     for axis in AXES:
         sid = axis["id"]
-        bar = "█" * (scores.get(sid, 0) // 10) + "░" * (10 - scores.get(sid, 0) // 10)
-        report += f"| {axis['name']:<30s} | {scores.get(sid, 0):>3d}/100 | {bar} |\n"
-    
-    report += f"""
-## 総合レベル: Level {level}
+        score = scores.get(sid, 0)
+        bar = "█" * (score // 10) + "░" * (10 - score // 10)
+        report += f"| {axis['name']} | {score:>3d}/100 | {bar} |\n"
 
-| Level | 到達 | 条件 |
-|-------|------|------|
-"""
-    for lv in range(1, 10):
-        if lv == 1:
-            reached = "✅" if level >= 1 else "—"
-            condition = "デフォルト"
-        elif lv == 2:
-            reached = "✅" if level >= 2 else ("❌" if level < 2 else "")
-            condition = "ワークフロー ≥ 60"
-        elif lv == 3:
-            reached = "✅" if level >= 3 else ("❌" if level < 2 else "")
-            condition = "ルーティング ≥ 60"
-        elif lv == 4:
-            reached = "✅" if level >= 4 else ("❌" if level < 2 else "")
-            condition = "アンサンブル ≥ 60"
-        elif lv == 5:
-            reached = "✅" if level >= 5 else ("❌" if level < 2 else "")
-            condition = "自己修正 ≥ 60"
-        elif lv == 6:
-            reached = "✅" if level >= 6 else ("❌" if level < 2 else "")
-            condition = "Agentic Search ≥ 60"
-        elif lv == 7:
-            reached = "✅" if level >= 7 else ("❌" if level < 2 else "")
-            condition = "自己進化 ≥ 60"
-        else:
-            reached = "⏳" if level >= 7 else "—"
-            condition = "Level 7達成後"
-        report += f"| {lv} | {reached} | {condition} |\n"
-    
-    # 客観指標 (Skill Evals)
+    report += "\n"
     report += format_evals_section(eval_results)
 
-    # 次のステップ
     report += "\n## 次のステップ\n\n"
-    next_level = level + 1
-    if next_level <= 7:
-        for axis in AXES:
-            if axis["level"] == next_level:
-                report += f"1. **{axis['name']}** を60以上に上げる（現在: {scores.get(axis['id'], 0)}）\n"
-                report += f"2. CHECKPOINTS.md の関連Phaseを確認する\n"
-                break
-    elif level >= 7:
-        report += "Level 7達成。次は Phase 2（発見ループ）または Phase 3（パラダイムシフト）を目指す。\n"
-    
+    report += "1. Evidence Gate（Functional / Failure-Recovery / Operational）の不足を確認する\n"
+    report += "2. 協働・拡張学習の因果順序と人間校正を記録する\n"
+    report += "3. 51点ゲートは外部成果を含めて別途評価する\n"
+
     if output_path:
         os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
         with open(output_path, "w") as f:
             f.write(report)
         print(f"\nレポート保存: {output_path}")
-    
+
     return report
 
 
 def quick_mode(run_evals: bool = True):
-    """クイックモード：全軸50と仮定"""
+    """クイックモード：全診断項目50、協働段階は未観測"""
     scores = {a["id"]: 50 for a in AXES}
-    level = determine_level(scores)
+    level = determine_execution_level(scores)
     eval_results = run_skill_evals() if run_evals else None
-    print(generate_report(scores, level, eval_results=eval_results))
+    print(generate_report(scores, level, eval_results=eval_results, collaboration_stage=0))
     return scores, level
 
 
 def interactive_mode(run_evals: bool = True):
-    """対話モード：1軸ずつ質問"""
+    """対話モード：診断項目と協働段階を質問"""
     scores = {}
     print("Agent Level Evaluator — 対話モード")
     print("各能力を0〜100で自己評価してください。")
@@ -287,11 +297,15 @@ def interactive_mode(run_evals: bool = True):
             return {}, 0
         scores[axis["id"]] = score
     
-    level = determine_level(scores)
+    collaboration_stage = ask_collaboration_stage()
+    if collaboration_stage < 0:
+        print("中断")
+        return {}, 0
+    level = determine_execution_level(scores)
     eval_results = run_skill_evals() if run_evals else None
     print()
     print("=" * 60)
-    print(generate_report(scores, level, eval_results=eval_results))
+    print(generate_report(scores, level, eval_results=eval_results, collaboration_stage=collaboration_stage))
     return scores, level
 
 
@@ -302,7 +316,7 @@ def main():
     elif "--help" in sys.argv or "-h" in sys.argv:
         print("Usage: python3 evaluate.py [--quick] [--no-evals]")
         print("  (no flag)    インタラクティブモード（evals 同時実行）")
-        print("  --quick      クイックモード（全軸50で仮評価・evals 同時実行）")
+        print("  --quick      クイックモード（診断項目50・協働段階未観測・evals 同時実行）")
         print("  --no-evals   スキル評価 (evals) をスキップ")
     else:
         interactive_mode(run_evals=run_evals)
