@@ -1,7 +1,7 @@
 # Evidence Runtime Contract
 
 更新日: 2026-09-09
-状態: 契約確定・Shadow実装前
+状態: 契約確定・隔離Shadow Adapter実装済み・通常Agent接続は未実施
 
 ## Purpose
 
@@ -136,6 +136,18 @@
 7. 不正な`trigger_origin`: 保存・集計対象から拒否される
 8. 不正な`configuration_id`: 保存・集計対象から拒否される
 9. 秘密情報の混入: Evidence、ログ、Reportに保存されない
+
+## Isolated Hermes Shadow Adapter
+
+`scripts/hermes_shadow_adapter.py`は、Hermes通常実行を模した完了イベントをstdinから受け、既存のValidatorとmetadata-first Collectorへ接続する隔離Adapterである。`event_type=completed_response`かつ`trigger_origin=hermes`だけを受け付け、`execution_mode=shadow`を強制する。
+
+```bash
+printf '%s' '<completed-response-event-json>' | \
+  python3 scripts/hermes_shadow_adapter.py \
+  --evidence-output /tmp/agent-level-shadow/operational-evidence/hermes.jsonl
+```
+
+このAdapterは、回答本文を検証中のメモリ上でのみ扱い、Evidenceには保存しない。外部配信、回答の置換、Gateway変更、cron変更、自動Promotionは行わない。実Hermes経路へ接続する前に、正常、Validator blocked、Runtime入力不正、Evidence保存失敗の各結果を読み戻す。
 
 ## Decision authority
 
