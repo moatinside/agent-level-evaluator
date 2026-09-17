@@ -1,0 +1,78 @@
+{
+  "scenario_id": "terminal-lifecycle-business-plan-draft",
+  "source_class": "real_new_business_brainstorm",
+  "question_initial": "question:enter_terminal_lifecycle_market",
+  "question_current": "question:shape_a_rough_terminal_lifecycle_business_plan",
+  "question_state": "provisionally_locked",
+  "decision_status": "draft_pending_customer_validation",
+  "question_changes": [
+    {
+      "before_ref": "question:enter_terminal_lifecycle_market",
+      "after_ref": "question:shape_a_rough_terminal_lifecycle_business_plan",
+      "reason": "the_conversation_progressed_to_a_rough_business_plan_but_did_not_establish_customer_contact_or_a_meeting_request",
+      "triggered_by_evidence_refs": [
+        "evidence:terminal-repair-and-used-device-market-research",
+        "evidence:business-model-rough-draft",
+        "evidence:user-correction-of-overstated-customer-progress"
+      ]
+    }
+  ],
+  "evidence_refs": [
+    "evidence:terminal-repair-and-used-device-market-research",
+    "evidence:business-model-rough-draft",
+    "evidence:user-correction-of-overstated-customer-progress"
+  ],
+  "decision_impact": "kept_the_case_at_rough-business-plan_stage_and_reset_customer-validation_as_unobserved",
+  "next_validation": "define_candidate_customer_interview_target_and_obtain_actual_contact_or_response_before_claiming_external_validation",
+  "scope_boundary": {
+    "status": "intentionally_deferred",
+    "deferred_topics": [
+      "candidate_customer_contact",
+      "explanation_meeting_request",
+      "purchase_intent",
+      "unit_economics"
+    ],
+    "reason_ref": "scope:business-plan-draft-before-customer-validation"
+  },
+  "human_calibration": [
+    {
+      "axis": "minimum_goal",
+      "status": "partial",
+      "rationale_ref": "calibration:user-described-rough-business-plan-as-current-state"
+    },
+    {
+      "axis": "framing_angle",
+      "status": "not_observable",
+      "rationale_ref": "calibration:source-does-not-establish-independent-angle-selection"
+    },
+    {
+      "axis": "center_pin",
+      "status": "not_observable",
+      "rationale_ref": "calibration:source-does-not-establish-customer-contact-as-center"
+    },
+    {
+      "axis": "external_outcome",
+      "status": "not_observable",
+      "rationale_ref": "calibration:user-corrected-claim-of-customer-contact"
+    },
+    {
+      "axis": "feedback_interpretation",
+      "status": "pass",
+      "rationale_ref": "calibration:user-correction-reduced-unsupported-progress-claim"
+    }
+  ],
+  "calibration_dimensions": {
+    "semantic_fit": "partial",
+    "formation_source": "user_correction",
+    "signal_type": "user_correction_and_scope_boundary",
+    "observability": "business_plan_observed_customer_outcome_unobserved"
+  },
+  "user_feedback": [
+    {
+      "kind": "correction",
+      "basis": "feedback:customer-contact-and-meeting-request-were-not-established"
+    }
+  ],
+  "raw_text_persisted": false,
+  "session_id_persisted": false
+}

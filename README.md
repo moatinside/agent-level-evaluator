@@ -1,6 +1,6 @@
 # Agent Level Evaluator
 
-> 「レストランの成長」をメタファーにしたAIエージェント進化レベル 1〜9 の定義と、自己評価フレームワーク。
+> 「レストランの成長」をメタファーにしたAIエージェント進化レベル 1〜9 の定義と、Evidence Gate・協働学習評価フレームワーク。
 
 どんなエージェントでも、このリポジトリをクローンして `AGENTS.md` を読ませるだけで、自分の現在のレベルを評価し、次のレベルに上がるためのロードマップを得られます。
 
@@ -25,6 +25,7 @@
 - Production接続・cron切替: 未実施（別途承認が必要）
 - 通常Agent接続前の契約整理: [docs/evidence-runtime-contract.md](docs/evidence-runtime-contract.md)
 - Capability追加前の測定可能性設計: [docs/measurement-first-capability-design.md](docs/measurement-first-capability-design.md)
+- 事業開発会話の協働・拡張学習評価: [docs/business-development-trajectory-reconstruction.md](docs/business-development-trajectory-reconstruction.md)
 - 現行状態の確認: `python3 scripts/evaluate_current_state.py`
 
 ## Start Here
@@ -46,6 +47,15 @@ cd agent-level-evaluator
 ```
 
 または、カスタムインストラクションとして `AGENTS.md` の内容を直接エージェントに与えても動作します。
+
+## レベル評価の2軸
+
+Level 1〜3の実行自律性と、Level 4以降で重要になる人間との協働・拡張学習を、同じ一つのスコアへ混ぜずに評価します。
+
+- **実行自律性**: 単発実行 → 固定ワークフロー → 条件分岐・検証 → アンサンブル → 自己修正 → 自律探索 → プロセス改善
+- **協働・拡張学習**: 動機付け → 方向付け → 内化 → 外化 → 批評 → 統制
+
+後者は、人間の暗黙の判断基準をAgentが外化し、Evidence・反証・次の検証へ接続できるかを扱います。51点の事業判断基準はLevelそのものではなく、協働・拡張学習の結果として最低限の判断可能性に到達したかを見るゲートです。詳細な実会話の校正は [docs/business-development-trajectory-reconstruction.md](docs/business-development-trajectory-reconstruction.md) にあります。
 
 ## レベル概要
 

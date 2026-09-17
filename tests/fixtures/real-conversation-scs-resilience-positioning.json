@@ -1,0 +1,89 @@
+{
+  "scenario_id": "scs-resilience-positioning",
+  "source_class": "real_new_business_brainstorm",
+  "question_initial": "question:build_scs_assessment_and_technical_validation_business",
+  "question_current": "question:position_post_acquisition_resilience_operations_business",
+  "question_state": "provisionally_locked",
+  "decision_status": "position_refined_pending_validation",
+  "question_changes": [
+    {
+      "before_ref": "question:build_scs_assessment_and_technical_validation_business",
+      "after_ref": "question:identify_a_distinct_post_acquisition_value_space",
+      "reason": "research_showed_that_pre_acquisition_assessment_and_technical_validation_are_crowded_or_adjacent_to_existing_security_capabilities",
+      "triggered_by_evidence_refs": [
+        "evidence:market-and-competitor-research",
+        "evidence:existing-company-asset-review",
+        "evidence:customer-and-provider-structure-analysis"
+      ]
+    },
+    {
+      "before_ref": "question:identify_a_distinct_post_acquisition_value_space",
+      "after_ref": "question:position_continuous_improvement_operations_and_evidence_maintenance",
+      "reason": "the_business_position_required_fine_tuning_after_research_and_asset_mapping",
+      "triggered_by_evidence_refs": [
+        "evidence:post-acquisition-operational-gap",
+        "evidence:existing-company-asset-review",
+        "evidence:market-positioning-research"
+      ]
+    }
+  ],
+  "evidence_refs": [
+    "evidence:market-and-competitor-research",
+    "evidence:existing-company-asset-review",
+    "evidence:post-acquisition-operational-gap",
+    "evidence:customer-and-provider-structure-analysis"
+  ],
+  "decision_impact": "shifted_the_candidate_from_assessment_and_validation_toward_a_distinct_post-acquisition_resilience_operations_position",
+  "next_validation": "validate_named_customer_payer_operational_owner_delivery_boundary_and_recurring_evidence-maintenance_workflow",
+  "scope_boundary": {
+    "status": "intentionally_deferred",
+    "deferred_topics": [
+      "customer_purchase_validation",
+      "recurring_pricing_validation",
+      "full_delivery-cost_validation",
+      "formal_organizational_separation"
+    ],
+    "reason_ref": "scope:position-refinement-before-commercial-validation"
+  },
+  "human_calibration": [
+    {
+      "axis": "minimum_goal",
+      "status": "partial",
+      "rationale_ref": "calibration:user-said-position-fine-tuning-was-learned-through-research"
+    },
+    {
+      "axis": "framing_angle",
+      "status": "partial",
+      "rationale_ref": "calibration:user-provided-company-asset-context"
+    },
+    {
+      "axis": "center_pin",
+      "status": "partial",
+      "rationale_ref": "calibration:user-said-the-position-was-mostly-set-after-refinement"
+    },
+    {
+      "axis": "evidence_driven_update",
+      "status": "pass",
+      "rationale_ref": "calibration:research-required-position-refinement"
+    },
+    {
+      "axis": "external_outcome",
+      "status": "not_observable",
+      "rationale_ref": "calibration:no_customer-or-revenue-outcome-preserved"
+    }
+  ],
+  "calibration_dimensions": {
+    "semantic_fit": "partial",
+    "formation_source": "user_directed_with_research_triggered_refinement",
+    "signal_type": "shared_formation_and_evidence_update",
+    "observability": "internal_trace_only_external_outcome_unobserved"
+  },
+  "user_feedback": [
+    {
+      "kind": "correction_and_context",
+      "basis": "feedback:user-provided-company-asset-and-positioning-context"
+    }
+  ],
+  "raw_text_persisted": false,
+  "session_id_persisted": false
+}
