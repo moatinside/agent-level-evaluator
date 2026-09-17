@@ -6,6 +6,23 @@ observation_policy:
   initial_shadow_window: 2-4 weeks
   promotion_before_calibration: false
   fixed_counts_before_shadow: false
+evaluation_axes:
+  execution_autonomy:
+    description: 実行自律性。固定手順から条件分岐、自己修正、自律探索、プロセス改善までを観測する。
+    levels: [1, 2, 3, 4, 5, 6, 7]
+  collaborative_expansive_learning:
+    description: 協働・拡張学習。人間の判断基準を外化し、共同統合、批評、問いの拡張、実践定着へ接続する。
+    levels: [4, 5, 6, 7]
+    human_calibration_required: true
+  business_51_point_gate:
+    description: 51点の事業判断基準。Levelや自律性のスコアではなく、共同形成された最低限の判断可能性を確認するゲート。
+    human_calibration_required: true
+  causal_order:
+    values:
+      - evidence_agent_update_user_judgment
+      - user_judgment_agent_structuring
+      - not_observable
+    required_for_autonomy_claim: true
 status_order:
   - not_defined
   - definition_ready
