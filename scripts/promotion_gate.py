@@ -3,27 +3,174 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.util
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
+VALIDATOR = ROOT / "scripts" / "validate_stage1.py"
 REQUIRED_CLASSES = {"D": {"S"}, "F": {"F"}, "X": {"X"}, "O": {"O"}, "P": {"R"}, "S": {"O", "R"}}
+FORBIDDEN_KEYS = {"raw_response", "raw_body", "final_text", "draft", "correction_text", "response_text"}
 
 
-def _validator():
-    path = Path(__file__).resolve().parent / "validate_stage1.py"
-    spec = importlib.util.spec_from_file_location("_evidence_validator", path)
+def load_module(name: str, path: Path) -> Any:
+    spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
-        raise RuntimeError("cannot load evidence validator")
+        raise RuntimeError(f"cannot load {path}")
     module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
 
 
+def _validator():
+    return load_module("_evidence_validator", VALIDATOR)
+
+
 def load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def canonical(value: Any) -> bytes:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def integrity_hash(record: dict[str, Any]) -> str:
+    payload = dict(record)
+    payload.pop("integrity_hash", None)
+    return "sha256:" + hashlib.sha256(canonical(payload)).hexdigest()
+
+
+def contains_forbidden_key(value: Any) -> bool:
+    if isinstance(value, dict):
+        return any(key in FORBIDDEN_KEYS or contains_forbidden_key(item) for key, item in value.items())
+    if isinstance(value, list):
+        return any(contains_forbidden_key(item) for item in value)
+    return False
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return "sha256:" + digest.hexdigest()
+
+
+def _count_quarantine_records(path: Path) -> int:
+    if path.suffix == ".jsonl":
+        return sum(1 for line in path.read_text(encoding="utf-8").splitlines() if line.strip())
+    json.loads(path.read_text(encoding="utf-8"))
+    return 1
+
+
+def audit_quarantine(root: Path) -> dict[str, Any]:
+    """Verify quarantined Evidence bytes and manifest references read-only."""
+    quarantine_root = root / "evidence-quarantine"
+    manifest_path = quarantine_root / "manifest.json"
+    if not quarantine_root.exists() and not manifest_path.exists():
+        return {"status": "not_configured", "file_count": 0, "record_count": 0, "errors": []}
+    if not manifest_path.is_file():
+        return {
+            "status": "fail",
+            "file_count": 0,
+            "record_count": 0,
+            "errors": ["evidence-quarantine/manifest.json is missing"],
+        }
+
+    errors: list[str] = []
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {
+            "status": "fail",
+            "file_count": 0,
+            "record_count": 0,
+            "errors": [f"cannot read quarantine manifest: {type(exc).__name__}"],
+        }
+    if not isinstance(manifest, dict) or manifest.get("schema_version") != 1:
+        return {
+            "status": "fail",
+            "file_count": 0,
+            "record_count": 0,
+            "errors": ["unsupported quarantine manifest schema"],
+        }
+    entries = manifest.get("entries")
+    if not isinstance(entries, list):
+        return {
+            "status": "fail",
+            "file_count": 0,
+            "record_count": 0,
+            "errors": ["quarantine manifest entries must be an array"],
+        }
+
+    record_count = 0
+    for index, entry in enumerate(entries):
+        prefix = f"manifest.entries[{index}]"
+        if not isinstance(entry, dict):
+            errors.append(f"{prefix} must be an object")
+            continue
+        relative = entry.get("quarantine_path")
+        expected_hash = entry.get("source_sha256")
+        expected_count = entry.get("record_count")
+        if not isinstance(relative, str) or not relative:
+            errors.append(f"{prefix}.quarantine_path must be a non-empty string")
+            continue
+        path = root / relative
+        try:
+            path.resolve().relative_to(quarantine_root.resolve())
+        except ValueError:
+            errors.append(f"{prefix}.quarantine_path escapes evidence-quarantine")
+            continue
+        if not path.is_file():
+            errors.append(f"{relative}: quarantined file is missing")
+            continue
+        if not isinstance(expected_hash, str) or file_sha256(path) != expected_hash:
+            errors.append(f"{relative}: quarantined file hash mismatch")
+        try:
+            actual_count = _count_quarantine_records(path)
+        except (OSError, json.JSONDecodeError):
+            errors.append(f"{relative}: quarantined file is not readable JSON")
+            continue
+        if actual_count != expected_count:
+            errors.append(f"{relative}: record count mismatch")
+        record_count += actual_count
+
+    return {
+        "status": "pass" if not errors else "fail",
+        "file_count": len(entries),
+        "record_count": record_count,
+        "errors": errors,
+    }
+
+
+def expected_evaluator_configuration_id(root: Path) -> tuple[str | None, str | None]:
+    guard_path = root / "scripts" / "run_shadow_evidence_guard.py"
+    if not guard_path.is_file():
+        return None, None
+    try:
+        guard = load_module("_shadow_guard_for_promotion", guard_path)
+        return guard.evaluator_configuration_id(root), None
+    except (FileNotFoundError, OSError, RuntimeError, ValueError) as exc:
+        return None, f"evaluator configuration manifest unavailable: {type(exc).__name__}"
+
+
+def validate_persisted_record(
+    record: dict[str, Any],
+    validator: Any,
+    expected_evaluator_id: str | None,
+) -> list[str]:
+    errors = list(validator.validate_evidence(record))
+    if contains_forbidden_key(record):
+        errors.append("forbidden raw response/body key found")
+    if record.get("integrity_hash") != integrity_hash(record):
+        errors.append("integrity_hash mismatch")
+    if expected_evaluator_id is not None and record.get("evaluator_configuration_id") != expected_evaluator_id:
+        errors.append("evaluator_configuration_id mismatch")
+    return errors
 
 
 def _iter_paths(root: Path):
@@ -33,37 +180,73 @@ def _iter_paths(root: Path):
             yield from sorted(directory.rglob("*.jsonl"))
 
 
-def collect_records_with_stats(root: Path, environment_classes: set[str] | None = None) -> tuple[list[dict[str, Any]], dict[str, int]]:
+def collect_records_with_stats(
+    root: Path,
+    environment_classes: set[str] | None = None,
+    invalid_errors: list[str] | None = None,
+    invalid_locations: list[str] | None = None,
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
     validator = _validator()
     eligible = environment_classes or {"production-like", "production"}
+    errors = invalid_errors if invalid_errors is not None else []
+    locations = invalid_locations if invalid_locations is not None else []
     records: list[dict[str, Any]] = []
-    stats = {"files_scanned": 0, "lines_scanned": 0, "records_eligible_scanned": 0, "records_excluded_environment": 0, "records_rejected": 0, "records_duplicate": 0, "records_conflict": 0}
+    stats = {
+        "files_scanned": 0,
+        "lines_scanned": 0,
+        "records_eligible_scanned": 0,
+        "records_excluded_environment": 0,
+        "records_rejected": 0,
+        "records_duplicate": 0,
+        "records_conflict": 0,
+    }
+    expected_id, configuration_error = expected_evaluator_configuration_id(root)
+    if configuration_error:
+        errors.append(configuration_error)
+        return records, stats
+
     seen: dict[str, str] = {}
     conflicted: set[str] = set()
     for path in _iter_paths(root):
         stats["files_scanned"] += 1
         try:
             if path.suffix == ".jsonl":
-                values = []
-                for line in path.read_text(encoding="utf-8").splitlines():
+                values: list[tuple[int, Any]] = []
+                for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
                     if not line.strip():
                         continue
                     stats["lines_scanned"] += 1
                     try:
-                        values.append(json.loads(line))
-                    except json.JSONDecodeError:
+                        values.append((line_number, json.loads(line)))
+                    except json.JSONDecodeError as exc:
+                        location = f"{path.relative_to(root)}:{line_number}"
+                        locations.append(location)
+                        errors.append(f"{location}: invalid JSON: {exc.msg}")
                         stats["records_rejected"] += 1
             else:
-                values = [load_json(path)]
+                values = [(1, load_json(path))]
                 stats["lines_scanned"] += 1
-        except (OSError, UnicodeError, json.JSONDecodeError):
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            location = str(path.relative_to(root))
+            locations.append(location)
+            errors.append(f"{location}: invalid JSON: {type(exc).__name__}")
             stats["records_rejected"] += 1
             continue
-        for value in values:
-            if not isinstance(value, dict) or "evidence_class" not in value:
+
+        for line_number, value in values:
+            location = f"{path.relative_to(root)}:{line_number}" if path.suffix == ".jsonl" else str(path.relative_to(root))
+            if not isinstance(value, dict):
+                locations.append(location)
+                errors.append(f"{location}: evidence record must be an object")
                 stats["records_rejected"] += 1
                 continue
-            if validator.validate_evidence(value):
+            if "evidence_class" not in value:
+                stats["records_rejected"] += 1
+                continue
+            validation_errors = validate_persisted_record(value, validator, expected_id)
+            if validation_errors:
+                locations.append(location)
+                errors.extend(f"{location}: {error}" for error in validation_errors)
                 stats["records_rejected"] += 1
                 continue
             if value["environment_class"] not in eligible:
@@ -81,7 +264,7 @@ def collect_records_with_stats(root: Path, environment_classes: set[str] | None 
                     stats["records_conflict"] += 1
                     stats["records_rejected"] += 1
                     conflicted.add(assessment_id)
-                    records[:] = [r for r in records if r["assessment_id"] != assessment_id]
+                    records[:] = [record for record in records if record["assessment_id"] != assessment_id]
                     seen.pop(assessment_id, None)
                 continue
             seen[assessment_id] = str(value.get("integrity_hash"))
@@ -89,12 +272,19 @@ def collect_records_with_stats(root: Path, environment_classes: set[str] | None 
     return records, stats
 
 
-def collect_records(root: Path) -> list[dict[str, Any]]:
-    return collect_records_with_stats(root)[0]
+def collect_records(
+    root: Path,
+    invalid_errors: list[str] | None = None,
+    invalid_locations: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    return collect_records_with_stats(root, None, invalid_errors, invalid_locations)[0]
 
 
 def assess(root: Path, environment_classes: set[str] | None = None) -> dict[str, Any]:
-    records, stats = collect_records_with_stats(root, environment_classes)
+    invalid_errors: list[str] = []
+    invalid_locations: list[str] = []
+    records, stats = collect_records_with_stats(root, environment_classes, invalid_errors, invalid_locations)
+    quarantine = audit_quarantine(root)
     by_level: dict[int, list[dict[str, Any]]] = {level: [] for level in range(1, 10)}
     for record in records:
         level = record.get("level")
@@ -105,27 +295,69 @@ def assess(root: Path, environment_classes: set[str] | None = None) -> dict[str,
     operational_level = 0
     contiguous = True
     for level in range(1, 8):
-        classes = {r.get("evidence_class") for r in by_level[level] if r.get("result") == "passed"}
+        classes = {record.get("evidence_class") for record in by_level[level] if record.get("result") == "passed"}
         missing = sorted({gate for gate, required in REQUIRED_CLASSES.items() if not (classes & required)})
         status = "blocked_by_lower_level" if not contiguous else ("passed" if not missing else "blocked")
-        level_results[str(level)] = {"track": "core", "status": status, "passed_evidence_classes": sorted(x for x in classes if isinstance(x, str)), "missing_gates": missing, "record_count": len(by_level[level])}
+        level_results[str(level)] = {
+            "track": "core",
+            "status": status,
+            "passed_evidence_classes": sorted(x for x in classes if isinstance(x, str)),
+            "missing_gates": missing,
+            "record_count": len(by_level[level]),
+        }
         if status == "passed":
             operational_level = level
         else:
             contiguous = False
+
     for level in (8, 9):
-        classes = {r.get("evidence_class") for r in by_level[level] if r.get("result") == "passed"}
+        classes = {record.get("evidence_class") for record in by_level[level] if record.get("result") == "passed"}
         missing = sorted({gate for gate, required in REQUIRED_CLASSES.items() if not (classes & required)})
         allowed = operational_level == 7
-        level_results[str(level)] = {"track": "advanced", "status": "passed" if allowed and not missing else ("blocked_by_level_7" if not allowed else "blocked"), "passed_evidence_classes": sorted(x for x in classes if isinstance(x, str)), "missing_gates": missing, "record_count": len(by_level[level])}
-    return {"schema_version": 1, "decision": "promotion_allowed_only_after_required_evidence_and_human_gate", "operational_level": operational_level if operational_level else "unassessed", "functional_ceiling": max((level for level in range(1, 10) if any(r.get("evidence_class") == "F" and r.get("result") == "passed" for r in by_level[level])), default="unassessed"), "records_considered": len(records), "accepted_assessment_ids": [r["assessment_id"] for r in records], **stats, "levels": level_results}
+        level_results[str(level)] = {
+            "track": "advanced",
+            "status": "passed" if allowed and not missing else ("blocked_by_level_7" if not allowed else "blocked"),
+            "passed_evidence_classes": sorted(x for x in classes if isinstance(x, str)),
+            "missing_gates": missing,
+            "record_count": len(by_level[level]),
+        }
+
+    functional_ceiling = max(
+        (level for level in range(1, 10) if any(record.get("evidence_class") == "F" and record.get("result") == "passed" for record in by_level[level])),
+        default="unassessed",
+    )
+    return {
+        "schema_version": 1,
+        "decision": "promotion_allowed_only_after_required_evidence_and_human_gate",
+        "operational_level": operational_level if operational_level else "unassessed",
+        "functional_ceiling": functional_ceiling,
+        "records_considered": len(records),
+        "accepted_assessment_ids": [record["assessment_id"] for record in records],
+        # Backward-compatible name: this now means invalid records still in
+        # the active scan roots, not historical records in quarantine.
+        "invalid_record_count": len(invalid_locations),
+        "active_invalid_record_count": len(invalid_locations),
+        "invalid_record_errors": invalid_errors,
+        "quarantined_historical_record_count": quarantine["record_count"],
+        "quarantine_file_count": quarantine["file_count"],
+        "quarantine_audit_status": quarantine["status"],
+        "quarantine_audit_errors": quarantine["errors"],
+        **stats,
+        "levels": level_results,
+    }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("--output", type=Path)
-    parser.add_argument("--environment-class", action="append", choices=["fixture", "sandbox", "shadow", "production-like", "production"], dest="environment_classes", help="include only these evidence environments; defaults to production-like and production")
+    parser.add_argument(
+        "--environment-class",
+        action="append",
+        choices=["fixture", "sandbox", "shadow", "production-like", "production"],
+        dest="environment_classes",
+        help="include only these evidence environments; defaults to production-like and production",
+    )
     args = parser.parse_args()
     result = assess(args.root.resolve(), set(args.environment_classes) if args.environment_classes else None)
     if args.output:
