@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -95,8 +94,16 @@ def validate_evidence(record: dict) -> list[str]:
             errors.append(f"evidence missing {key}")
     if errors:
         return errors
-    if record["schema_version"] != 1:
-        errors.append("evidence schema_version must be 1")
+    try:
+        schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+        allowed_keys = set(schema.get("properties", {}))
+    except (OSError, json.JSONDecodeError, AttributeError):
+        allowed_keys = set()
+    if allowed_keys:
+        unknown_keys = sorted(set(record) - allowed_keys)
+        errors.extend(f"evidence contains unknown key: {key}" for key in unknown_keys)
+    if not isinstance(record["scenario_id"], str) or not record["scenario_id"]:
+        errors.append("scenario_id must be a non-empty string")
     if not isinstance(record["level"], int) or not 1 <= record["level"] <= 9:
         errors.append("level must be integer 1..9")
     if record["evidence_class"] not in EVIDENCE_CLASSES:

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import sys
@@ -50,6 +51,9 @@ def evidence(level: int, evidence_class: str) -> dict:
     }
     if evidence_class == "O":
         value["action_trace_ref"] = "fixture-trace"
+    value.pop("integrity_hash", None)
+    payload = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    value["integrity_hash"] = "sha256:" + hashlib.sha256(payload).hexdigest()
     return value
 
 
@@ -59,6 +63,48 @@ class PromotionGateTests(unittest.TestCase):
             result = promotion.assess(Path(directory))
         self.assertEqual(result["operational_level"], "unassessed")
         self.assertEqual(result["records_considered"], 0)
+
+    def test_jsonl_evidence_ledger_is_considered(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            evidence_dir = root / "operational-evidence"
+            evidence_dir.mkdir()
+            ledger = evidence_dir / "shadow.jsonl"
+            ledger.write_text(
+                "\n".join(json.dumps(evidence(1, cls)) for cls in ["S", "F", "X", "O", "R"]) + "\n",
+                encoding="utf-8",
+            )
+            result = promotion.assess(root)
+        self.assertEqual(result["records_considered"], 5)
+        self.assertEqual(result["operational_level"], 1)
+        self.assertEqual(result["levels"]["1"]["status"], "passed")
+
+    def test_invalid_jsonl_evidence_is_not_considered(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            evidence_dir = root / "operational-evidence"
+            evidence_dir.mkdir()
+            ledger = evidence_dir / "invalid.jsonl"
+            ledger.write_text(
+                "\n".join(json.dumps({"level": 1, "evidence_class": cls, "result": "passed"}) for cls in ["S", "F", "X", "O", "R"]) + "\n",
+                encoding="utf-8",
+            )
+            result = promotion.assess(root)
+        self.assertEqual(result["records_considered"], 0)
+        self.assertEqual(result["invalid_record_count"], 5)
+        self.assertEqual(result["operational_level"], "unassessed")
+
+    def test_malformed_jsonl_line_is_reported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            evidence_dir = root / "operational-evidence"
+            evidence_dir.mkdir()
+            ledger = evidence_dir / "malformed.jsonl"
+            ledger.write_text("{not-json}\n", encoding="utf-8")
+            result = promotion.assess(root)
+        self.assertEqual(result["records_considered"], 0)
+        self.assertEqual(result["invalid_record_count"], 1)
+        self.assertIn("invalid JSON", result["invalid_record_errors"][0])
 
     def test_complete_level_one_evidence_promotes_only_level_one(self):
         with tempfile.TemporaryDirectory() as directory:

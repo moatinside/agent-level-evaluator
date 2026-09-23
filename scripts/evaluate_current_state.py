@@ -42,6 +42,8 @@ def evaluate(root: Path) -> dict[str, Any]:
             "operational_level": promotion_result["operational_level"],
             "functional_ceiling": promotion_result["functional_ceiling"],
             "records_considered": promotion_result["records_considered"],
+            "invalid_record_count": promotion_result["invalid_record_count"],
+            "invalid_record_errors": promotion_result["invalid_record_errors"],
             "levels": promotion_result["levels"],
         },
         "promotion": {
