@@ -121,3 +121,34 @@ Phase 2.3は、旧定義に対するPhase状態としては`passed`である。�
 - Level 5〜7を評価するには、それぞれの能力契約に対応したFunctional / Failure / Operational fixtureを別途作る。
 - `verifiable: true`のような自己申告・固定値を、独立検証結果へ昇格させない。
 - Phase 2.3を継続利用する場合も、候補の新規性、実験実行、効果測定、ユーザー価値を別フィールドで保持する。
+
+## ADR-002 — Evidence quarantine for historical contract failures
+
+- **Status**: accepted
+- **Accepted at**: 2026-09-25 JST
+- **Scope**: Persisted Evidence with historical schema, configuration identity, integrity, or origin failures
+- **Decision source**: User approval in Discord
+
+### Decision
+
+Historical invalid Evidence is not deleted, rewritten, or relabeled as valid. Files whose Evidence records are all invalid under the current Promotion Gate are moved byte-for-byte to `evidence-quarantine/`, outside the active scan roots. The migration is recorded in `evidence-quarantine/manifest.json` with source and destination paths, record counts, reason categories, and file hashes.
+
+Mixed files containing both valid and invalid Evidence are not moved automatically. A current configuration rerun produces new Active Evidence and is referenced as regenerated coverage, not as an in-place repair of the historical record.
+
+### Operational reporting
+
+The current evaluator reports these states separately:
+
+- `records_considered`: Active Evidence accepted by the current gate
+- `active_invalid_record_count`: invalid records still in active scan roots
+- `quarantined_historical_record_count`: records retained outside the active scan roots
+- `quarantine_audit_status`: manifest and file-integrity result
+
+A quarantine audit failure is not silently ignored. It is reported as a failed audit and blocks any claim that historical preservation is verified.
+
+### Consequences
+
+- The active evaluation report can show zero active invalid records without destroying negative evidence.
+- Historical records remain available for forensic review and reason analysis.
+- Quarantine placement must remain outside `operational-evidence/` because the active Promotion Gate scans that directory recursively.
+- Future collection should validate in staging and publish only validated records to Active Evidence; failed output should enter quarantine.

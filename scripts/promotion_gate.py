@@ -48,6 +48,106 @@ def contains_forbidden_key(value: Any) -> bool:
     return False
 
 
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return "sha256:" + digest.hexdigest()
+
+
+def _count_quarantine_records(path: Path) -> int:
+    if path.suffix == ".jsonl":
+        return sum(1 for line in path.read_text(encoding="utf-8").splitlines() if line.strip())
+    json.loads(path.read_text(encoding="utf-8"))
+    return 1
+
+
+def audit_quarantine(root: Path) -> dict[str, Any]:
+    """Verify quarantined Evidence bytes and manifest references read-only."""
+    quarantine_root = root / "evidence-quarantine"
+    manifest_path = quarantine_root / "manifest.json"
+    if not quarantine_root.exists() and not manifest_path.exists():
+        return {
+            "status": "not_configured",
+            "file_count": 0,
+            "record_count": 0,
+            "errors": [],
+        }
+    if not manifest_path.is_file():
+        return {
+            "status": "fail",
+            "file_count": 0,
+            "record_count": 0,
+            "errors": ["evidence-quarantine/manifest.json is missing"],
+        }
+
+    errors: list[str] = []
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {
+            "status": "fail",
+            "file_count": 0,
+            "record_count": 0,
+            "errors": [f"cannot read quarantine manifest: {type(exc).__name__}"],
+        }
+    if not isinstance(manifest, dict) or manifest.get("schema_version") != 1:
+        return {
+            "status": "fail",
+            "file_count": 0,
+            "record_count": 0,
+            "errors": ["unsupported quarantine manifest schema"],
+        }
+    entries = manifest.get("entries")
+    if not isinstance(entries, list):
+        return {
+            "status": "fail",
+            "file_count": 0,
+            "record_count": 0,
+            "errors": ["quarantine manifest entries must be an array"],
+        }
+
+    record_count = 0
+    for index, entry in enumerate(entries):
+        prefix = f"manifest.entries[{index}]"
+        if not isinstance(entry, dict):
+            errors.append(f"{prefix} must be an object")
+            continue
+        relative = entry.get("quarantine_path")
+        expected_hash = entry.get("source_sha256")
+        expected_count = entry.get("record_count")
+        if not isinstance(relative, str) or not relative:
+            errors.append(f"{prefix}.quarantine_path must be a non-empty string")
+            continue
+        path = root / relative
+        try:
+            path.resolve().relative_to(quarantine_root.resolve())
+        except ValueError:
+            errors.append(f"{prefix}.quarantine_path escapes evidence-quarantine")
+            continue
+        if not path.is_file():
+            errors.append(f"{relative}: quarantined file is missing")
+            continue
+        if not isinstance(expected_hash, str) or file_sha256(path) != expected_hash:
+            errors.append(f"{relative}: quarantined file hash mismatch")
+        try:
+            actual_count = _count_quarantine_records(path)
+        except (OSError, json.JSONDecodeError):
+            errors.append(f"{relative}: quarantined file is not readable JSON")
+            continue
+        if actual_count != expected_count:
+            errors.append(f"{relative}: record count mismatch")
+        record_count += actual_count
+
+    return {
+        "status": "pass" if not errors else "fail",
+        "file_count": len(entries),
+        "record_count": record_count,
+        "errors": errors,
+    }
+
+
 def expected_evaluator_configuration_id(root: Path) -> tuple[str | None, str | None]:
     guard_path = root / "scripts" / "run_shadow_evidence_guard.py"
     if not guard_path.is_file():
@@ -136,6 +236,7 @@ def assess(root: Path) -> dict[str, Any]:
     invalid_errors: list[str] = []
     invalid_locations: list[str] = []
     records = collect_records(root, invalid_errors, invalid_locations)
+    quarantine = audit_quarantine(root)
     by_level: dict[int, list[dict[str, Any]]] = {level: [] for level in range(1, 10)}
     for record in records:
         level = record.get("level")
@@ -186,8 +287,15 @@ def assess(root: Path) -> dict[str, Any]:
         "operational_level": computed_operational_level if computed_operational_level else "unassessed",
         "functional_ceiling": functional_ceiling,
         "records_considered": len(records),
+        # Backward-compatible name: this now means invalid records still in
+        # the active scan roots, not historical records in quarantine.
         "invalid_record_count": len(invalid_locations),
+        "active_invalid_record_count": len(invalid_locations),
         "invalid_record_errors": invalid_errors,
+        "quarantined_historical_record_count": quarantine["record_count"],
+        "quarantine_file_count": quarantine["file_count"],
+        "quarantine_audit_status": quarantine["status"],
+        "quarantine_audit_errors": quarantine["errors"],
         "levels": level_results,
     }
 
