@@ -44,7 +44,12 @@ def evaluate(root: Path) -> dict[str, Any]:
             "functional_ceiling": promotion_result["functional_ceiling"],
             "records_considered": promotion_result["records_considered"],
             "invalid_record_count": promotion_result["invalid_record_count"],
+            "active_invalid_record_count": promotion_result["active_invalid_record_count"],
             "invalid_record_errors": promotion_result["invalid_record_errors"],
+            "quarantined_historical_record_count": promotion_result["quarantined_historical_record_count"],
+            "quarantine_file_count": promotion_result["quarantine_file_count"],
+            "quarantine_audit_status": promotion_result["quarantine_audit_status"],
+            "quarantine_audit_errors": promotion_result["quarantine_audit_errors"],
             "levels": promotion_result["levels"],
         },
         "promotion": {
