@@ -69,6 +69,17 @@ The reclassification record is:
 evaluation-reports/phase23-reclassification-20260906.json
 ```
 
+## Evidence quarantine boundary
+
+Persisted Evidence has two operational states:
+
+- **Active Evidence**: files under `operational-evidence/` and `evaluation-reports/` that pass the current Promotion Gate and may be considered for a promotion candidate.
+- **Quarantined historical Evidence**: files under `evidence-quarantine/` that are retained byte-for-byte for audit and negative evidence but are excluded from current promotion assessment.
+
+The quarantine directory must remain outside the active scan roots. Each quarantine migration is recorded in `evidence-quarantine/manifest.json` with the original path, destination path, record count, reason categories, and a SHA-256 file hash. `scripts/promotion_gate.py` audits the manifest and file hashes separately from active Evidence.
+
+A current configuration rerun creates new Evidence; it does not repair, relabel, or delete historical records. Reports must show `records_considered`, `active_invalid_record_count`, `quarantined_historical_record_count`, and `quarantine_audit_status` as separate fields.
+
 ## Explicit boundary
 
 ```text
