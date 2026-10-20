@@ -18,6 +18,12 @@ from typing import Any
 SECRET_RE = re.compile(r"(?i)(api[_-]?key|token|secret|password)=\S+")
 URL_CRED_RE = re.compile(r"(?i)https?://[^\s/@:]+:[^\s/@]+@")
 HOME_RE = re.compile(r"(?:/Users/[^\s]+|/home/[^\s]+|[A-Za-z]:\\[^\s]+)")
+# ENFORCE D-3: Tool name allowlist for sanitized traces
+ALLOWED_TOOL_NAMES = {
+    "browser", "calculator", "email", "search", "file_system", "code_execution",
+    "knowledge_retrieval", "web_search", "api_call", "database_query",
+    "read_file", "terminal",  # Extended with common Hermes tools
+}
 
 
 def canonical(value: Any) -> bytes:
@@ -48,6 +54,10 @@ def build_candidate(trace: Any) -> dict[str, Any]:
     tools = trace.get("tool_calls", [])
     if not isinstance(tools, list) or not all(isinstance(item, str) for item in tools):
         raise ValueError("trace.tool_calls must be an array of tool names")
+    # ENFORCE D-3: Validate tool names against allowlist; reject unknown tools
+    invalid_tools = [t for t in tools if t not in ALLOWED_TOOL_NAMES]
+    if invalid_tools:
+        raise ValueError(f"unknown tool names not in allowlist: {invalid_tools}")
     criteria = trace.get("criteria", [])
     if not isinstance(criteria, list) or not all(isinstance(item, str) and item for item in criteria):
         raise ValueError("trace.criteria must be an array of non-empty strings")
