@@ -60,8 +60,16 @@ def evaluate(case: dict[str, Any], agent_configuration_id: str, evaluator_config
         after = require_string(change.get("after_ref"), "question change after_ref")
         reason = require_string(change.get("reason"), "question change reason")
         triggered = change.get("triggered_by_evidence_refs")
-        if before == after or not isinstance(triggered, list) or not triggered:
-            raise ValueError("question change requires distinct refs and evidence")
+        # ENFORCE D-2: triggered refs must be non-empty and exist in case evidence
+        if before == after:
+            raise ValueError("question change requires distinct before/after refs")
+        if not isinstance(triggered, list) or not triggered:
+            raise ValueError("question change requires non-empty triggered_by_evidence_refs")
+        # ENFORCE D-2: all triggered refs must be present in case evidence_refs
+        triggered_set = set(triggered)
+        evidence_set = set(evidence)
+        if not triggered_set.issubset(evidence_set):
+            raise ValueError(f"triggered_by_evidence_refs must be subset of case evidence_refs, got: {triggered_set - evidence_set}")
         valid_changes += 1
 
     feedback_types = []

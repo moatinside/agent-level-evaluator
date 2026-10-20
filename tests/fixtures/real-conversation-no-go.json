@@ -30,8 +30,10 @@
   "evidence_refs": [
     "evidence:official-energy-policy-and-market-sources",
     "evidence:industry-player-research",
+    "evidence:customer-and-operator-structure-analysis",
     "evidence:customer-payer-responsibility-gap",
-    "evidence:operational-delivery-burden"
+    "evidence:operational-delivery-burden",
+    "evidence:insufficient-validation-evidence"
   ],
   "decision_impact": "ended_current_energy_management_saas_exploration_and_separated_future_reassessment_conditions",
   "next_validation": "reassess_only_if_a_named_payer_operational_owner_and_delivery_path_emerge",

@@ -26,10 +26,10 @@
     }
   ],
   "evidence_refs": [
-    "evidence:user-correction-on-business-boundary",
-    "evidence:user-correction-on-customer-and-provider-classification",
-    "evidence:channel-incentive-constraints",
-    "evidence:customer-problem-hypothesis"
+    "evidence:user-business-boundary-correction",
+    "evidence:user-customer-provider-classification-correction",
+    "evidence:user-rejection-of-overbroad-partner-frame",
+    "evidence:existing-channel-incentive-constraints"
   ],
   "decision_impact": "returned_from_partner_first_hypothesis_to_customer_problem_and_role_boundary_validation",
   "next_validation": "validate_end_user_pain_buyer_owner_and_partner_incentive_before_resuming_channel_design",
