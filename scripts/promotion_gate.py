@@ -285,6 +285,15 @@ def assess(root: Path, environment_classes: set[str] | None = None) -> dict[str,
     invalid_locations: list[str] = []
     records, stats = collect_records_with_stats(root, environment_classes, invalid_errors, invalid_locations)
     quarantine = audit_quarantine(root)
+    
+    # ENFORCE A-2: All records must have the same agent_configuration_id
+    if records:
+        config_ids = {record.get("agent_configuration_id") for record in records}
+        config_ids.discard(None)  # Remove None if present
+        if len(config_ids) > 1:
+            invalid_errors.append(f"mixed agent_configuration_id values: {sorted(str(c) for c in config_ids)}")
+            records = []
+    
     by_level: dict[int, list[dict[str, Any]]] = {level: [] for level in range(1, 10)}
     for record in records:
         level = record.get("level")

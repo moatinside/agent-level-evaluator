@@ -8,6 +8,7 @@ final_textは検証中だけメモリ上で扱い、Evidenceへ保存しない�
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -19,6 +20,11 @@ from live_shadow_policy import evaluate, write_evidence  # noqa: E402
 
 class AdapterError(ValueError):
     """入力イベントがRuntime Shadow契約に違反した。"""
+
+
+def opaque_request_id(request_id: str) -> str:
+    """ENFORCE B-4: Convert request_id to opaque hash for Evidence storage."""
+    return "sha256:" + hashlib.sha256(request_id.encode("utf-8")).hexdigest()
 
 
 def require_string(value: Any, name: str) -> str:
@@ -77,7 +83,7 @@ def adapt(event: Any, evidence_output: Path) -> dict[str, Any]:
     decision["evidence_persisted"] = False
     decision["evidence_error_code"] = None
     try:
-        write_evidence(request, decision, evidence_output)
+        write_evidence(request, decision, evidence_output, opaque_id_fn=opaque_request_id)
     except (OSError, ValueError) as exc:
         decision["evidence_error_code"] = "evidence_write_failed"
         print(f"evidence persistence failed: {type(exc).__name__}", file=sys.stderr)

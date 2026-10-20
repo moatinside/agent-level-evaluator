@@ -78,9 +78,12 @@ def evaluate(request: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def write_evidence(request: dict[str, Any], decision: dict[str, Any], output: Path) -> None:
+def write_evidence(request: dict[str, Any], decision: dict[str, Any], output: Path, opaque_id_fn = None) -> None:
     started = timestamp()
     metadata = request["metadata"]
+    request_id = request["request_id"]
+    # ENFORCE B-4: Use opaque request_id in Evidence if provided
+    evidence_request_id = opaque_id_fn(request_id) if opaque_id_fn else request_id
     run_result = {
         "status": decision["status"],
         "delivery_allowed": decision["allowed"],
@@ -91,13 +94,13 @@ def write_evidence(request: dict[str, Any], decision: dict[str, Any], output: Pa
         request,
         run_result,
         {
-            "run_id": request["request_id"],
+            "run_id": evidence_request_id,
             "level": 5,
             "capability_id": "self_reflection",
             "capability_contract_version": "1.0.0",
             "agent_configuration_id": metadata["agent_configuration_id"],
             "evaluator_configuration_id": metadata["evaluator_configuration_id"],
-            "scenario_id": request["request_id"],
+            "scenario_id": evidence_request_id,
             "trigger_origin": metadata.get("trigger_origin", "harness"),
             "environment_class": "shadow",
             "execution_mode": "shadow",

@@ -153,8 +153,18 @@ def validate_evidence(record: dict) -> list[str]:
         errors.append("invalid rollback_result")
     if record["evidence_class"] == "O" and not isinstance(record.get("action_trace_ref"), str):
         errors.append("O evidence requires string action_trace_ref")
-    if record["evidence_class"] == "F" and not isinstance(record.get("acceptance_results"), dict):
-        errors.append("F evidence requires acceptance_results")
+    if record["evidence_class"] == "F":
+        acceptance = record.get("acceptance_results")
+        if not isinstance(acceptance, dict):
+            errors.append("F evidence requires acceptance_results")
+        elif not acceptance:
+            # ENFORCE A-1: acceptance_results must not be empty
+            errors.append("F evidence acceptance_results must not be empty")
+        else:
+            # ENFORCE A-1: all acceptance results must be "passed"
+            failed = [key for key, val in acceptance.items() if val != "passed"]
+            if failed:
+                errors.append(f"F evidence acceptance_results must all be 'passed', got: {failed}")
     for key in ["started_at", "ended_at", "reviewed_at"]:
         if key not in record:
             continue

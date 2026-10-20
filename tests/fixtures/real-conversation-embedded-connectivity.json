@@ -25,10 +25,10 @@
     }
   ],
   "evidence_refs": [
-    "evidence:internal-meeting-record",
-    "evidence:official-market-source",
-    "evidence:competitor-research",
-    "evidence:unit-economics-model"
+    "evidence:meeting-record-structure",
+    "evidence:existing-mobile-plan",
+    "evidence:repair-franchise-research",
+    "evidence:used-device-market-research"
   ],
   "decision_impact": "shifted_from_mobile_franchise_request_to_independent_terminal_lifecycle_validation",
   "next_validation": "validate_customer_entry_unit_economics_backend_responsibility_and_multi-site_reproducibility",

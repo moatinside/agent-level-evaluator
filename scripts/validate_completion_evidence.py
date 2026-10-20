@@ -26,12 +26,17 @@ def validate(payload: Any) -> dict[str, Any]:
         return {"status": "inconclusive", "complete": False, "reason": "evidence must be an array"}
 
     required: dict[str, str] = {}
+    seen_cids = set()
     for condition in conditions:
         if not isinstance(condition, dict):
             return {"status": "inconclusive", "complete": False, "reason": "condition must be an object"}
         cid, ctype = condition.get("condition_id"), condition.get("type")
         if not isinstance(cid, str) or not cid or ctype not in CONDITION_TYPES:
             return {"status": "inconclusive", "complete": False, "reason": "invalid condition"}
+        # ENFORCE: condition IDs must be unique (no duplicates allowed)
+        if cid in seen_cids:
+            return {"status": "inconclusive", "complete": False, "reason": f"duplicate condition_id: {cid}"}
+        seen_cids.add(cid)
         if condition.get("required") is True:
             required[cid] = ctype
 
@@ -61,8 +66,13 @@ def validate(payload: Any) -> dict[str, Any]:
         item = by_id[cid]
         if ctype == "command_exit_zero" and item.get("exit_code") != 0:
             return {"status": "blocked", "complete": False, "reason": "command exit code was not zero", "failed": [cid]}
-        if ctype == "tests_pass" and (item.get("fail_count") != 0 or not isinstance(item.get("pass_count"), int)):
-            return {"status": "blocked", "complete": False, "reason": "test evidence is not clean", "failed": [cid]}
+        if ctype == "tests_pass":
+            pass_count = item.get("pass_count")
+            fail_count = item.get("fail_count")
+            # ENFORCE: test evidence requires at least 1 passing test and 0 failures
+            if (not isinstance(pass_count, int) or pass_count < 1 or 
+                not isinstance(fail_count, int) or fail_count != 0):
+                return {"status": "blocked", "complete": False, "reason": "test evidence is not clean (zero tests or failures)", "failed": [cid]}
         if ctype == "artifact_present" and (not isinstance(item.get("artifact_ref"), str) or item.get("artifact_verified") is not True):
             return {"status": "inconclusive", "complete": False, "reason": "artifact reference or verification missing", "missing": [cid]}
     return {"status": "passed", "complete": True, "task_id": task_id, "verified_conditions": sorted(required)}

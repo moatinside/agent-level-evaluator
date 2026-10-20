@@ -29,8 +29,17 @@ def validate_text(
             "issues": [{"id": "text-type", "message": "candidate must be a string"}],
         }
 
+    # ENFORCE B-2: Empty rule arrays are configuration error, not success
+    req_patterns = required_patterns or []
+    forb_patterns = forbidden_patterns or []
+    if not req_patterns and not forb_patterns:
+        return {
+            "status": STATUS_INCONCLUSIVE,
+            "issues": [{"id": "no-rules", "message": "both required_patterns and forbidden_patterns are empty"}],
+        }
+
     issues: list[dict[str, str]] = []
-    for index, pattern in enumerate(required_patterns or []):
+    for index, pattern in enumerate(req_patterns):
         try:
             matched = bool(re.search(pattern, text, re.S))
         except re.error as exc:
@@ -46,7 +55,7 @@ def validate_text(
                 "message": "required pattern is missing",
             })
 
-    for index, pattern in enumerate(forbidden_patterns or []):
+    for index, pattern in enumerate(forb_patterns):
         try:
             matched = bool(re.search(pattern, text, re.S))
         except re.error as exc:
