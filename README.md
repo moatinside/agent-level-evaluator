@@ -115,48 +115,34 @@ python3 evals/run_behavior_evals.py \
 - 実際のAgentのツール実行まで測る比較は `command` adapter を使い、`tool_trace` を返すrunnerを接続する。
 - APIキー・トークンを設定ファイルへ直接記載しない。評価artifactはメタデータ限定で、回答本文・ツールtrace/引数・Provider設定・scenario入力・ローカルパスを保存しない。
 
-## 構成
+## リポジトリ構成
 
-```
+```text
 agent-level-evaluator/
-├── AGENTS.md           ← エージェントが自動ロードするメインの評価手順
-├── FRAMEWORK.md        ← Level 1-9 の定義と各レベルの解説
-├── docs/current-evaluation-architecture.md ← 現行SSOTと移行境界
-├── archive/legacy-phase/ ← 旧Phase資料・Executor（履歴専用）
-├── docs/
-│   ├── autonomous-progression-protocol.md ← 評価から実行へ遷移する必須プロトコル
-│   ├── level-evidence-gate-design.md ← Level 1〜9の証明・昇格設計
-│   ├── measurement-first-capability-design.md ← Capability追加前の観測可能性・評価可能性ゲート
-│   └── decision-log.md ← 設計判断とPhase 2.3評価の記録
-├── contracts/
-│   └── level-contracts.yaml ← Level契約とGateの機械可読定義
-├── schemas/
-│   └── evidence-record.schema.json ← 証拠レコードSchema
-├── tests/
-│   ├── test_stage1_contracts.py ← Stage 1回帰テスト
-│   └── fixtures/ ← 正常／異常証拠fixture
-├── execution-plans/     ← 実行可能なチェックポイント計画
-├── execution-evidence/  ← 実行成果物・テスト・ログ
-├── scripts/
-│   ├── evaluate.py     ← Python3 自己評価スクリプト（標準ライブラリのみ）
-│   ├── audit_legacy_pipeline.py ← 旧Phase経路と切替可否の監査
-│   ├── evaluate_current_state.py ← Evidence Gateの読み取り専用評価入口
-│   └── validate_stage1.py ← Level契約・証拠Schemaの決定的検証
-│   ├── response_validation.py ← Level 5 buffered Validator
-│   ├── validated_agent_runner.py ← 外部送信しないValidator runner
-│   ├── validated_command_runner.py ← 生成Agent／修正Agent接続runner
-│   ├── collect_operational_evidence.py ← metadata-first運用証拠Collector
-│   ├── run_shadow_batch.py ← 複数ケースのshadow実行・集計
-│   ├── reclassify_phase23.py ← Phase 2.3履歴の再分類
-│   ├── promotion_gate.py ← 証拠ゲートによる昇格ブロック（Shadowは既定除外）
-│   └── evidence_report.py ← 採用Evidenceの一覧・詳細・集計
-
-├── evals/              ← スキル単位の品質保証（Schmid: Don't Ship Skills Without Evals）
-│   ├── README.md       ← テスト定義の書き方・使い方
-│   ├── run_evals.py    ← 評価ハーネス（YAMLテスト読込・regex判定・アブレーション）
-│   └── tests/          ← <skill>.yaml 形式のテスト定義（例: gbrain.yaml, self-validate.yaml）
-└── README.md
+├── .cursorrules              # Cursor向け指示
+├── .github/                  # Copilot指示とGitHub Actions
+├── .gitignore
+├── archive/legacy-phase/     # 旧Phaseの計画・実行スクリプト・チェックポイント
+├── contracts/                # Level契約の機械可読定義
+├── docs/                     # 評価方式、Evidence Gate、移行・設計記録
+├── evals/                    # スキル評価と振る舞い評価
+│   ├── behavior/             # シナリオ、設定例、固定fixture
+│   └── tests/                # スキル評価定義と振る舞い評価の回帰テスト
+├── evaluation-reports/       # 評価レポート・履歴スナップショット
+├── execution-evidence/       # 過去の実行証拠
+├── migration/                # 移行検証の承認記録
+├── schemas/                  # Evidence等のJSON Schema
+├── scripts/                  # 現行の評価・検証・Shadow実行CLI
+├── tests/                    # 現行コードのユニットテストとfixture
+├── AGENTS.md                 # エージェント共通の評価手順
+├── CLAUDE.md                 # Claude Code向け入口
+├── FRAMEWORK.md              # Level 1〜9の定義
+└── README.md                 # 利用者向け案内
 ```
+
+旧Phaseの実行計画とスクリプトは`archive/legacy-phase/`内に置いています。現行CLIは`scripts/`、テストは`tests/`、Skill・Agentの評価定義とハーネスは`evals/`に分けています。
+
+`operational-evidence/`と`evidence-quarantine/`は設計上の運用保存先です。現在のリポジトリにはディレクトリや記録ファイルは含まれていません。
 
 ## 評価スクリプト
 
