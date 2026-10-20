@@ -115,6 +115,47 @@ python3 evals/run_behavior_evals.py \
 - 実際のAgentのツール実行まで測る比較は `command` adapter を使い、`tool_trace` を返すrunnerを接続する。
 - APIキー・トークンを設定ファイルへ直接記載しない。評価artifactはメタデータ限定で、回答本文・ツールtrace/引数・Provider設定・scenario入力・ローカルパスを保存しない。
 
+## 本番環境デプロイ（Blue-Green Strategy）
+
+**macOS と Windows の両プラットフォームで Blue-Green デプロイをサポートしています。**
+
+### macOS (launchd)
+
+```bash
+# セットアップ
+bash scripts/setup_blue_green.sh
+
+# 監視
+python3 scripts/blue_green_monitor.py
+
+# 詳細ガイド
+cat docs/BLUE_GREEN_DEPLOYMENT_GUIDE.md
+```
+
+詳細: [Blue-Green Deployment Guide](docs/BLUE_GREEN_DEPLOYMENT_GUIDE.md)
+
+### Windows (Task Scheduler)
+
+1. **Release ページから executable をダウンロード**
+   ```
+   https://github.com/moatinside/agent-level-evaluator/releases
+   → agent-level-evaluator.exe
+   ```
+
+2. **PowerShell で自動セットアップ**
+   ```powershell
+   # 管理者として実行
+   .\setup_windows_service.ps1 -ExePath ".\agent-level-evaluator.exe"
+   ```
+
+3. **自動実行開始**
+   - Blue service: 毎時間実行
+   - Green service: 待機（24h後に昇格可能）
+
+詳細: [Windows Setup Guide](docs/README_WINDOWS.md)
+
+---
+
 ## リポジトリ構成
 
 ```text
@@ -124,7 +165,10 @@ agent-level-evaluator/
 ├── .gitignore
 ├── archive/legacy-phase/     # 旧Phaseの計画・実行スクリプト・チェックポイント
 ├── contracts/                # Level契約の機械可読定義
-├── docs/                     # 評価方式、Evidence Gate、移行・設計記録
+├── docs/                     # 評価方式、Evidence Gate、本番デプロイガイド
+│   ├── BLUE_GREEN_DEPLOYMENT_GUIDE.md  # 共通 Blue-Green ガイド
+│   ├── README_WINDOWS.md                # Windows セットアップ
+│   └── ...                              # その他ドキュメント
 ├── evals/                    # スキル評価と振る舞い評価
 │   ├── behavior/             # シナリオ、設定例、固定fixture
 │   └── tests/                # スキル評価定義と振る舞い評価の回帰テスト
@@ -132,8 +176,13 @@ agent-level-evaluator/
 ├── execution-evidence/       # 過去の実行証拠
 ├── migration/                # 移行検証の承認記録
 ├── schemas/                  # Evidence等のJSON Schema
-├── scripts/                  # 現行の評価・検証・Shadow実行CLI
+├── scripts/                  # 評価・検証CLI + 本番デプロイスクリプト
+│   ├── setup_blue_green.sh           # macOS Blue-Green セットアップ
+│   ├── blue_green_monitor.py         # 監視ダッシュボード
+│   └── ...                           # その他CLI
 ├── tests/                    # 現行コードのユニットテストとfixture
+├── build_windows_exe.py      # Windows exe ビルドスクリプト（PyInstaller）
+├── setup_windows_service.ps1 # Windows Task Scheduler 自動セットアップ
 ├── AGENTS.md                 # エージェント共通の評価手順
 ├── CLAUDE.md                 # Claude Code向け入口
 ├── FRAMEWORK.md              # Level 1〜9の定義
