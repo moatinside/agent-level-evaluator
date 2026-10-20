@@ -52,11 +52,22 @@ def normalize_result(value: Any) -> dict[str, Any]:
     return {"answer": answer, "actions": actions, "tool_trace": trace}
 
 
-def invoke_replay(provider: dict[str, Any], _: dict[str, Any]) -> dict[str, Any]:
+def invoke_replay(provider: dict[str, Any], request: dict[str, Any]) -> dict[str, Any]:
     fixture = Path(provider["fixture"])
     if not fixture.is_absolute():
         fixture = ROOT / fixture
-    return normalize_result(json.loads(fixture.read_text(encoding="utf-8")))
+    payload = json.loads(fixture.read_text(encoding="utf-8"))
+    # A mapped fixture lets each scenario use its own expected answer while
+    # preserving backwards compatibility with a single {answer, actions, ...} result.
+    if isinstance(payload, dict) and "scenarios" in payload:
+        by_scenario = payload["scenarios"]
+        scenario_id = request.get("scenario_id")
+        if not isinstance(by_scenario, dict):
+            raise ValueError("replay fixture 'scenarios' must be an object")
+        if not isinstance(scenario_id, str) or scenario_id not in by_scenario:
+            raise ValueError(f"replay fixture has no result for scenario: {scenario_id!r}")
+        payload = by_scenario[scenario_id]
+    return normalize_result(payload)
 
 
 def invoke_command(provider: dict[str, Any], request: dict[str, Any]) -> dict[str, Any]:

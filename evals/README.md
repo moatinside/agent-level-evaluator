@@ -84,12 +84,32 @@ negative_path:       # 陥ってはいけない品質問題
 
 スキルが未インストールの場合は SKIPPED として安全にスキップされる。
 
+## Decision-context gate の回帰評価
+
+`evals/behavior/decision-context-gate/` は、技術選択をユーザーへ渡す前に親目的・既決事項・対象部品の根拠・回答による作業差分・安全な既定を確認するゲートの契約テストです。独立した二つの匿名化ケースで、目的の取り違えと明示済みルートの上書きを分けて扱います。
+
+```bash
+python3 evals/run_behavior_evals.py \
+  --config evals/behavior/decision-context-gate/pass.yaml \
+  --scenarios evals/behavior/decision-context-gate/scenarios.yaml
+```
+
+`fixtures-pass.json` の応答は新しく書いた固定出力です。これはシナリオごとの採点条件が通ることを示すだけで、実モデルがスキルに従う証拠ではありません。`negative.yaml` は必須条件を欠く負例であり、同じシナリオ指定で実行したとき **意図どおりFAIL** することを確認します。旧形式の単一結果Fixtureも引き続き使用できます。
+
+```bash
+python3 -m unittest discover -s evals/tests -p 'test_*.py'
+```
+
+この検証はローカルの固定出力のみを使い、Gateway・Discord・LLM Providerを起動しません。実運用での改善は別に、訂正前の自力検出と通常利用での再現を測る必要があります。
+
 ## 既存テスト
 
 | テスト | 対象スキル | 内容 |
 |--------|-----------|------|
 | `gbrain.yaml` | gbrain | 知識基盤スキルの構造健全性 (frontmatter / 手順 / 検証 / 落とし穴) |
 | `self-validate.yaml` | self-validate | 自己検証スキルの要件充足 (発動条件 / 完了基準 / 3層防御 / 禁止原則) |
+| `agent-levels.yaml` | agent-levels | Level 7改善判断ゲートの構成要件 |
+| `agent-levels-evaluation.yaml` | agent-levels | 独立事例・負例・実運用との証拠境界 |
 
 ## 評価対象スキルの場所
 

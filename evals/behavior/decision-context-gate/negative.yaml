@@ -1,0 +1,6 @@
+experiment:
+  id: decision-context-gate-negative-control
+  description: Intentionally incomplete answers must fail both independent scenarios
+provider:
+  type: replay
+  fixture: evals/behavior/decision-context-gate/fixtures-negative.json

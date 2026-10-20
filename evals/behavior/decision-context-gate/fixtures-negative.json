@@ -1,0 +1,14 @@
+{
+  "scenarios": {
+    "parent_goal_before_publication": {
+      "answer": "どのリポジトリに公開するか選んでください。どちらにしますか？",
+      "actions": [],
+      "tool_trace": []
+    },
+    "honor_explicit_route": {
+      "answer": "ローカル経路と有料の外部経路のどちらにしますか？",
+      "actions": [],
+      "tool_trace": []
+    }
+  }
+}
