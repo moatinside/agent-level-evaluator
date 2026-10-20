@@ -7,6 +7,7 @@ virtual actions and final answer, or consumes an actual agent runner's trace.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import shlex
@@ -28,6 +29,12 @@ ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_SCENARIOS = ROOT / "evals" / "behavior" / "scenarios.yaml"
 
 
+def artifact_ref(namespace: str, value: str) -> str:
+    """Return a stable pseudonymous reference without persisting source labels."""
+    material = f"agent-level-evaluator:v2:{namespace}:{value}".encode("utf-8")
+    return "sha256:" + hashlib.sha256(material).hexdigest()
+
+
 def load_yaml(path: Path) -> Any:
     with path.open(encoding="utf-8") as f:
         return yaml.safe_load(f)
@@ -35,6 +42,69 @@ def load_yaml(path: Path) -> Any:
 
 def as_list(value: Any) -> list[Any]:
     return value if isinstance(value, list) else []
+
+
+def validate_scenario(scenario: Any) -> None:
+    if not isinstance(scenario, dict):
+        raise ValueError("each scenario must be an object")
+    scenario_id = scenario.get("id")
+    if not isinstance(scenario_id, str) or not scenario_id.strip():
+        raise ValueError("scenario id must be a non-empty string")
+    if not isinstance(scenario.get("input"), str):
+        raise ValueError(f"scenario {scenario_id!r} input must be a string")
+
+    tools = scenario.get("tools", [])
+    if not isinstance(tools, list):
+        raise ValueError(f"scenario {scenario_id!r} tools must be a list")
+    for tool in tools:
+        if (not isinstance(tool, dict) or not isinstance(tool.get("name"), str)
+                or not tool["name"].strip()):
+            raise ValueError(f"scenario {scenario_id!r} tools must have non-empty names")
+
+    list_fields = ("required_actions", "forbidden_actions")
+    for field in list_fields:
+        values = scenario.get(field, [])
+        if not isinstance(values, list) or any(
+            not isinstance(value, str) or not value.strip() for value in values
+        ):
+            raise ValueError(f"scenario {scenario_id!r} {field} must be a list of non-empty strings")
+
+    rules = scenario.get("answer", {})
+    if not isinstance(rules, dict):
+        raise ValueError(f"scenario {scenario_id!r} answer rules must be an object")
+    pattern_count = 0
+    for field in ("required_patterns", "forbidden_patterns"):
+        patterns = rules.get(field, [])
+        if not isinstance(patterns, list):
+            raise ValueError(f"scenario {scenario_id!r} answer.{field} must be a list")
+        for pattern in patterns:
+            if not isinstance(pattern, str) or not pattern.strip():
+                raise ValueError(f"scenario {scenario_id!r} answer.{field} must contain non-empty strings")
+            try:
+                re.compile(pattern)
+            except re.error as exc:
+                raise ValueError(f"scenario {scenario_id!r} has an invalid regex in answer.{field}") from exc
+            pattern_count += 1
+
+    effective_criteria = sum(len(scenario.get(field, [])) for field in list_fields) + pattern_count
+    if effective_criteria == 0:
+        raise ValueError(f"scenario {scenario_id!r} has no effective grading criteria")
+
+
+def validate_scenarios_document(document: Any) -> list[dict[str, Any]]:
+    if not isinstance(document, dict):
+        raise ValueError("scenario file must contain an object")
+    scenarios = document.get("scenarios")
+    if not isinstance(scenarios, list) or not scenarios:
+        raise ValueError("no scenarios found")
+    seen_ids: set[str] = set()
+    for scenario in scenarios:
+        validate_scenario(scenario)
+        scenario_id = scenario["id"]
+        if scenario_id in seen_ids:
+            raise ValueError(f"duplicate scenario id: {scenario_id!r}")
+        seen_ids.add(scenario_id)
+    return scenarios
 
 
 def normalize_result(value: Any) -> dict[str, Any]:
@@ -49,6 +119,11 @@ def normalize_result(value: Any) -> dict[str, Any]:
         raise ValueError("result.actions must be an array of objects")
     if not isinstance(trace, list) or not all(isinstance(a, dict) for a in trace):
         raise ValueError("result.tool_trace must be an array of objects")
+    for field, entries in (("actions", actions), ("tool_trace", trace)):
+        for index, entry in enumerate(entries, start=1):
+            tool = entry.get("tool")
+            if not isinstance(tool, str) or not tool.strip():
+                raise ValueError(f"result.{field}[{index}] must have a non-empty string tool")
     return {"answer": answer, "actions": actions, "tool_trace": trace}
 
 
@@ -122,39 +197,49 @@ def invoke(provider: dict[str, Any], request: dict[str, Any]) -> dict[str, Any]:
     raise ValueError("provider.type must be replay, command, or ollama")
 
 
-def action_names(result: dict[str, Any]) -> list[str]:
-    selected = result["tool_trace"] or result["actions"]
+def action_names(result: dict[str, Any], *, require_tool_trace: bool = False) -> list[str]:
+    selected = result["tool_trace"] if require_tool_trace else (result["tool_trace"] or result["actions"])
     return [a.get("tool", "") for a in selected if isinstance(a.get("tool", ""), str)]
 
 
-def grade(scenario: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
+def grade(
+    scenario: dict[str, Any], result: dict[str, Any], *, require_tool_trace: bool = False
+) -> dict[str, Any]:
+    validate_scenario(scenario)
+    result = normalize_result(result)
     checks: list[dict[str, Any]] = []
     answer = result["answer"]
-    names = action_names(result)
+    names = action_names(result, require_tool_trace=require_tool_trace)
     declared = {t["name"] for t in as_list(scenario.get("tools")) if isinstance(t, dict) and "name" in t}
-    for name in names:
-        checks.append({"id": f"action-allowed:{name}", "pass": name in declared,
+    for index, name in enumerate(names, start=1):
+        checks.append({"id": f"action-allowed:{index}", "pass": name in declared,
                        "detail": "virtual tool is declared" if name in declared else "undeclared virtual tool"})
     required = as_list(scenario.get("required_actions"))
     cursor = 0
-    for name in required:
+    for rule_index, name in enumerate(required, start=1):
         try:
-            index = names.index(name, cursor)
-            checks.append({"id": f"action-required:{name}", "pass": True, "detail": f"position {index}"})
-            cursor = index + 1
+            found_at = names.index(name, cursor)
+            checks.append({"id": f"action-required:{rule_index}", "pass": True,
+                           "detail": f"position {found_at}"})
+            cursor = found_at + 1
         except ValueError:
-            checks.append({"id": f"action-required:{name}", "pass": False, "detail": f"actual: {names}"})
-    for name in as_list(scenario.get("forbidden_actions")):
-        checks.append({"id": f"action-forbidden:{name}", "pass": name not in names, "detail": f"actual: {names}"})
+            checks.append({"id": f"action-required:{rule_index}", "pass": False,
+                           "detail": f"actual: {names}"})
+    for index, name in enumerate(as_list(scenario.get("forbidden_actions")), start=1):
+        checks.append({"id": f"action-forbidden:{index}", "pass": name not in names, "detail": f"actual: {names}"})
     rules = scenario.get("answer", {})
-    for pattern in as_list(rules.get("required_patterns")):
-        checks.append({"id": f"answer-required:{pattern}", "pass": bool(re.search(pattern, answer, re.S)), "detail": answer})
-    for pattern in as_list(rules.get("forbidden_patterns")):
-        checks.append({"id": f"answer-forbidden:{pattern}", "pass": not bool(re.search(pattern, answer, re.S)), "detail": answer})
+    for index, pattern in enumerate(as_list(rules.get("required_patterns")), start=1):
+        matched = bool(re.search(pattern, answer, re.S))
+        checks.append({"id": f"answer-required:{index}", "pass": matched,
+                       "detail": "required pattern matched" if matched else "required pattern missing"})
+    for index, pattern in enumerate(as_list(rules.get("forbidden_patterns")), start=1):
+        matched = bool(re.search(pattern, answer, re.S))
+        checks.append({"id": f"answer-forbidden:{index}", "pass": not matched,
+                       "detail": "forbidden pattern matched" if matched else "forbidden pattern absent"})
     passed = sum(c["pass"] for c in checks)
     total = len(checks)
     return {"scenario": scenario["id"], "status": "PASS" if passed == total else "FAIL",
-            "passed": passed, "total": total, "score_0_100": round(100 * passed / total, 1) if total else 0,
+            "passed": passed, "total": total, "score_0_100": round(100 * passed / total, 1),
             "checks": checks, "result": result}
 
 
@@ -163,10 +248,13 @@ def run_once(provider: dict[str, Any], scenario: dict[str, Any]) -> dict[str, An
                "system_context": scenario.get("system_context", ""), "tools": scenario.get("tools", [])}
     started = time.monotonic()
     try:
-        outcome = grade(scenario, invoke(provider, request))
+        outcome = grade(
+            scenario, invoke(provider, request),
+            require_tool_trace=provider.get("type") == "command",
+        )
     except Exception as exc:  # record provider/runner failures as evaluable failures
         outcome = {"scenario": scenario["id"], "status": "ERROR", "passed": 0, "total": 0,
-                   "score_0_100": 0, "checks": [], "error": str(exc)}
+                   "score_0_100": None, "checks": [], "error_type": type(exc).__name__}
     outcome["elapsed_ms"] = round((time.monotonic() - started) * 1000)
     return outcome
 
@@ -180,11 +268,25 @@ def main() -> int:
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     if args.repeat < 1: parser.error("--repeat must be >= 1")
-    config = load_yaml(args.config)
-    scenarios_doc = load_yaml(args.scenarios)
-    provider = config.get("provider", {})
-    scenarios = as_list(scenarios_doc.get("scenarios"))
-    if not scenarios: raise SystemExit("no scenarios found")
+    try:
+        config = load_yaml(args.config)
+        if not isinstance(config, dict):
+            raise ValueError("config file must contain an object")
+        experiment = config.get("experiment", {})
+        if not isinstance(experiment, dict):
+            raise ValueError("config experiment must be an object")
+        experiment_id = experiment.get("id")
+        if not isinstance(experiment_id, str) or not experiment_id.strip():
+            raise ValueError("config experiment.id must be a non-empty string")
+        provider = config.get("provider", {})
+        if not isinstance(provider, dict):
+            raise ValueError("config provider must be an object")
+        provider_type = provider.get("type")
+        if not isinstance(provider_type, str) or provider_type not in {"replay", "command", "ollama"}:
+            raise ValueError("provider.type must be replay, command, or ollama")
+        scenarios = validate_scenarios_document(load_yaml(args.scenarios))
+    except (OSError, ValueError, yaml.YAMLError) as exc:
+        parser.error(f"invalid eval configuration: {exc}")
     runs = []
     for attempt in range(1, args.repeat + 1):
         for scenario in scenarios:
@@ -193,13 +295,23 @@ def main() -> int:
             runs.append(record)
     passed = sum(r["status"] == "PASS" for r in runs)
     artifact = {
-        "schema_version": 1,
+        "schema_version": 2,
         "executed_at": datetime.now(timezone.utc).isoformat(),
-        "experiment": config.get("experiment", {}), "provider": provider,
-        "scenario_file": str(args.scenarios), "repeat": args.repeat,
+        "experiment_ref": artifact_ref("experiment", experiment_id),
+        "provider_type": provider.get("type"),
+        "scenario_count": len(scenarios), "repeat": args.repeat,
         "summary": {"passed_runs": passed, "total_runs": len(runs),
                     "pass_rate_0_100": round(100 * passed / len(runs), 1)},
-        "runs": runs,
+        "runs": [{
+            "scenario_ref": artifact_ref("scenario", record["scenario"]),
+            "status": record["status"],
+            "passed": record["passed"], "total": record["total"],
+            "score_0_100": record["score_0_100"], "elapsed_ms": record["elapsed_ms"],
+            "attempt": record["attempt"],
+            "checks": [{"id": check["id"], "pass": check["pass"]}
+                       for check in record["checks"]],
+            **({"error_type": record["error_type"]} if "error_type" in record else {}),
+        } for record in runs],
     }
     rendered = json.dumps(artifact, ensure_ascii=False, indent=2)
     if args.output:
@@ -208,9 +320,10 @@ def main() -> int:
     if args.json:
         print(rendered)
     else:
-        exp = artifact["experiment"].get("id", "unnamed")
-        print(f"Behavior Evals: {exp}")
-        for r in runs: print(f"  [{r['status']}] {r['scenario']} attempt={r['attempt']} {r['passed']}/{r['total']} ({r['elapsed_ms']}ms)")
+        print(f"Behavior Evals: provider={artifact['provider_type']}")
+        for r in runs:
+            scenario_ref = artifact_ref("scenario", r["scenario"])
+            print(f"  [{r['status']}] {scenario_ref} attempt={r['attempt']} {r['passed']}/{r['total']} ({r['elapsed_ms']}ms)")
         print(f"Total: {passed}/{len(runs)} PASS ({artifact['summary']['pass_rate_0_100']}%)")
         if args.output: print(f"Artifact: {args.output}")
     return 0 if passed == len(runs) else 1
