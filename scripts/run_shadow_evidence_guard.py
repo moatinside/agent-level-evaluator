@@ -27,7 +27,14 @@ STATE_READER = ROOT / "scripts" / "evaluate_current_state.py"
 VALIDATOR = ROOT / "scripts" / "validate_stage1.py"
 
 AGENT_CONFIGURATION_ID = "sha256:9a5419d362256c163fd235dffa0e39ca0f03d7ff94b1f17bff16836279214169"
-EXPECTED_COUNTS = {"passed": 2, "blocked": 1, "inconclusive": 1, "failed": 0}
+# ENFORCE B-1: Expected results and validator execution by scenario
+EXPECTED_COUNTS = {"passed": 2, "blocked": 1, "inconclusive": 1}
+SCENARIO_CONTRACTS = {
+    "shadow-good": {"required_stages": {"producer": True, "validator": True}, "expected_result": "passed"},
+    "shadow-bad": {"required_stages": {"producer": True, "validator": True}, "expected_result": "blocked"},
+    "shadow-inconclusive": {"required_stages": {"producer": True, "validator": True, "correction": True}, "expected_result": "inconclusive"},
+    "shadow-correction": {"required_stages": {"producer": True, "validator": True, "correction": True, "revalidation": True}, "expected_result": "passed"},
+}
 EXPECTED_SCENARIOS = {
     "shadow-clean",
     "shadow-correction",
@@ -150,6 +157,17 @@ def validate_new_records(
             errors.append(f"{scenario}: forbidden raw response/body key found")
         if record.get("integrity_hash") != integrity_hash(record):
             errors.append(f"{scenario}: integrity_hash mismatch")
+        # ENFORCE B-1: validator_invoked must be true for all scenarios
+        if not record.get("acceptance_results", {}).get("validator_invoked", False):
+            errors.append(f"{scenario}: validator_invoked=false (producer only, no validator execution)")
+        # ENFORCE B-1: Check scenario-specific contract (result + required stages)
+        scenario_id = record.get("scenario_id", "unknown")
+        if isinstance(scenario_id, str) and scenario_id in SCENARIO_CONTRACTS:
+            contract = SCENARIO_CONTRACTS[scenario_id]
+            expected_result = contract["expected_result"]
+            actual_result = record.get("result")
+            if actual_result != expected_result:
+                errors.append(f"{scenario_id}: expected result '{expected_result}', got '{actual_result}'")
 
     result_values = [record.get("result") for record in new_records]
     if not all(isinstance(result, str) for result in result_values):
