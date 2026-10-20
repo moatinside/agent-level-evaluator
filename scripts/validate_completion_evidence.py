@@ -70,7 +70,7 @@ def validate(payload: Any) -> dict[str, Any]:
             pass_count = item.get("pass_count")
             fail_count = item.get("fail_count")
             # ENFORCE: test evidence requires at least 1 passing test and 0 failures
-            if (not isinstance(pass_count, int) or pass_count < 1 or 
+            if (not isinstance(pass_count, int) or pass_count < 1 or
                 not isinstance(fail_count, int) or fail_count != 0):
                 return {"status": "blocked", "complete": False, "reason": "test evidence is not clean (zero tests or failures)", "failed": [cid]}
         if ctype == "artifact_present" and (not isinstance(item.get("artifact_ref"), str) or item.get("artifact_verified") is not True):
