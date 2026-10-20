@@ -10,7 +10,7 @@
     "evaluator_configuration_id", "evidence_class", "scenario_id",
     "trigger_origin", "environment_class", "started_at", "ended_at",
     "input_ref", "expected_contract", "result", "semantic_verdict", "reviewer",
-    "integrity_hash", "provenance"
+    "integrity_hash"
   ],
   "properties": {
     "schema_version": {"const": 1},
@@ -21,7 +21,7 @@
     "agent_configuration_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
     "evaluator_configuration_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
     "evidence_class": {"type": "string", "enum": ["S", "F", "X", "O", "R", "N"]},
-    "provenance": {"type": "string", "enum": ["production_runtime", "fixture_probe"]},
+    "provenance": {"type": "string", "enum": ["production_runtime", "fixture_probe"], "default": "production_runtime"},
     "scenario_id": {"type": "string", "minLength": 1},
     "trigger_origin": {"type": "string", "enum": ["harness", "hermes"]},
     "environment_class": {"type": "string", "enum": ["fixture", "sandbox", "shadow", "production-like", "production"]},
