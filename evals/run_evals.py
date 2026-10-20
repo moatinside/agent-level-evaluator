@@ -107,29 +107,21 @@ def run_eval(test_def: dict, skills_dir: Path, skill_dir: Path | None) -> dict:
     }
 
     if skill_dir is None:
-        # スキル未インストール → happy path は全部 FAIL (スキルがない = 機能しない)
-        for t in test_def.get("happy_path", []):
-            result["happy"].append({
-                "id": t.get("id"), "name": t.get("name", ""),
-                "pass": False, "detail": "スキル未インストール",
-            })
-        for t in test_def.get("negative_path", []):
-            result["negative"].append({
-                "id": t.get("id"), "name": t.get("name", ""),
-                "pass": True, "detail": "スキル未インストール (検証対象なし)",
-            })
-        return result
-
-    content_path = skill_dir / target_file
-    content = ""
-    if content_path.exists():
-        content = content_path.read_text(encoding="utf-8", errors="replace")
+        # ENFORCE C-3: Ablation mode must run evaluation without skill, not auto-fail all tests
+        # スキル未インストール時は、スキルなしでの評価を実施 (no-op検出用)
+        # 実ランタイムでは「スキル未インストール」エラーだが、アブレーション測定では必要
+        content = ""  # スキル無しなら空content で evaluate
     else:
-        # SKILL.md がない場合は配下の md を連結して判定 (構造は YAML で担保)
-        md_files = sorted(skill_dir.glob("*.md"))
-        content = "\n".join(
-            f.read_text(encoding="utf-8", errors="replace") for f in md_files
-        )
+        content_path = skill_dir / target_file
+        content = ""
+        if content_path.exists():
+            content = content_path.read_text(encoding="utf-8", errors="replace")
+        else:
+            # SKILL.md がない場合は配下の md を連結して判定 (構造は YAML で担保)
+            md_files = sorted(skill_dir.glob("*.md"))
+            content = "\n".join(
+                f.read_text(encoding="utf-8", errors="replace") for f in md_files
+            )
 
     for t in test_def.get("happy_path", []):
         ok, detail = run_single_test(t, content)
