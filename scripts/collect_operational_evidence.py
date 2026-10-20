@@ -86,6 +86,8 @@ def collect(request: dict[str, Any], run_result: dict[str, Any], metadata: dict[
         "agent_configuration_id": require_hash_id(metadata.get("agent_configuration_id"), "agent_configuration_id"),
         "evaluator_configuration_id": require_hash_id(metadata.get("evaluator_configuration_id"), "evaluator_configuration_id"),
         "evidence_class": "O",
+        # ENFORCE D-9: Distinguish probe/fixture evidence from production runtime evidence
+        "provenance": metadata.get("provenance", "production_runtime"),  # or "fixture_probe"
         "scenario_id": require_string(metadata.get("scenario_id"), "scenario_id"),
         "trigger_origin": metadata.get("trigger_origin", "harness"),
         "environment_class": metadata.get("environment_class", "shadow"),
