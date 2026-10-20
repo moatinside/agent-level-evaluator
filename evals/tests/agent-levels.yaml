@@ -1,0 +1,53 @@
+skill: agent-levels
+description: Level 7 self-optimization decision gate
+target_file: SKILL.md
+max_score: 9
+
+happy_path:
+  - id: agent-levels-gate-h1
+    name: gate is located under Level 7
+    check: contains
+    pattern: "改善判断ゲート（自己進化の実運用）"
+    reason: The gate must be available in the existing Level 7 skill.
+  - id: agent-levels-gate-h2
+    name: parent goal and explicit decisions are restored
+    check: contains
+    pattern: "親目的・現在フェーズ・ユーザーが明示した選択"
+    reason: Avoid asking about components before resolving already available context.
+  - id: agent-levels-gate-h3
+    name: component origin is classified
+    check: contains
+    pattern: "ユーザー要件／既存実装／AIが持ち込んだ選択肢"
+    reason: Separate user requirements from assistant-created scope.
+  - id: agent-levels-gate-h4
+    name: route evidence is required
+    check: contains
+    pattern: "ユーザーの実際の利用経路に属する根拠"
+    reason: Do not promote an assistant-introduced component without evidence.
+  - id: agent-levels-gate-h5
+    name: answer impact is explained
+    check: contains
+    pattern: "回答によって変わる作業・費用・リスク"
+    reason: Make the effect of the user's answer understandable.
+  - id: agent-levels-gate-h6
+    name: explicit choice is followed
+    check: contains
+    pattern: "既に明示された選択で決まるならそれに従う"
+    reason: Avoid redundant questions and route substitution.
+  - id: agent-levels-gate-h7
+    name: safe default is specified
+    check: contains
+    pattern: "関連性が確かめられない間は"
+    reason: Keep unverified assistant-created components from causing side effects.
+  - id: agent-levels-gate-h8
+    name: only unresolved user-owned intent is asked
+    check: contains
+    pattern: "ユーザーにしか決められない目的・優先順位"
+    reason: Do not delegate technical choices to a user lacking project context.
+
+negative_path:
+  - id: agent-levels-gate-n1
+    name: no unfinished marker
+    check: not_contains
+    pattern: "(?i)\\bTODO\\b|\\bFIXME\\b"
+    reason: The decision gate must be fully specified rather than left as a placeholder.

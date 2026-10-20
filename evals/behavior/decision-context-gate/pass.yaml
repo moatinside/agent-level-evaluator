@@ -1,0 +1,6 @@
+experiment:
+  id: decision-context-gate-independent-cases
+  description: Replay contract for parent-goal mismatch and explicit-route adherence
+provider:
+  type: replay
+  fixture: evals/behavior/decision-context-gate/fixtures-pass.json

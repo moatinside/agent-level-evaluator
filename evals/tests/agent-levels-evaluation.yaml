@@ -1,0 +1,38 @@
+skill: agent-levels
+description: Level 7 improvement gate regression procedure
+target_file: references/evaluation-procedure.md
+max_score: 6
+
+happy_path:
+  - id: agent-levels-eval-h1
+    name: uses independent historical cases
+    check: contains
+    pattern: "別のタスクから匿名化した独立事例を最低2件"
+    reason: Avoid validating the change only against its triggering incident.
+  - id: agent-levels-eval-h2
+    name: covers a parent-goal mismatch
+    check: contains
+    pattern: "目的の取り違えがある場合"
+    reason: Exercise the scope-restoration branch.
+  - id: agent-levels-eval-h3
+    name: covers an explicit prior route
+    check: contains
+    pattern: "ユーザーの経路選択が既に明示されている場合"
+    reason: Exercise the no-redundant-question branch.
+  - id: agent-levels-eval-h4
+    name: requires a negative control
+    check: contains
+    pattern: "必須条件を欠く負例"
+    reason: Prove the evaluator rejects a response missing a gate invariant.
+  - id: agent-levels-eval-h5
+    name: does not retain transcript content or IDs
+    check: contains
+    pattern: "生の会話本文・メッセージIDはテスト記録へ保存せず"
+    reason: Keep the regression evidence minimized and de-identified.
+  - id: agent-levels-eval-h6
+    name: does not equate replay with live behavior
+    check: contains
+    pattern: "実際のモデルがスキルに従うこと"
+    reason: Prevent a fixed-fixture pass from being reported as runtime compliance.
+
+negative_path: []
