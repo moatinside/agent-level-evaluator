@@ -113,7 +113,7 @@ python3 evals/run_behavior_evals.py \
 - 設計と比較時の固定条件: `docs/behavior-evals-design.md`
 - `structured` なOllama評価は、**実ツールを実行せず**選択だけを採点する。
 - 実際のAgentのツール実行まで測る比較は `command` adapter を使い、`tool_trace` を返すrunnerを接続する。
-- APIキー・トークンを設定ファイルや評価artifactに保存しない。
+- APIキー・トークンを設定ファイルへ直接記載しない。評価artifactはメタデータ限定で、回答本文・ツールtrace/引数・Provider設定・scenario入力・ローカルパスを保存しない。
 
 ## 構成
 

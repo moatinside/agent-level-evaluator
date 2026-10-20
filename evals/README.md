@@ -94,7 +94,11 @@ python3 evals/run_behavior_evals.py \
   --scenarios evals/behavior/decision-context-gate/scenarios.yaml
 ```
 
-`fixtures-pass.json` の応答は新しく書いた固定出力です。これはシナリオごとの採点条件が通ることを示すだけで、実モデルがスキルに従う証拠ではありません。`negative.yaml` は必須条件を欠く負例であり、同じシナリオ指定で実行したとき **意図どおりFAIL** することを確認します。旧形式の単一結果Fixtureも引き続き使用できます。
+`fixtures-pass.json` の応答は新しく書いた固定出力です。これはシナリオごとの採点条件が通ることを示すだけで、実モデルがスキルに従う証拠ではありません。`negative.yaml` は必須条件を欠く負例であり、同じシナリオ指定で実行したとき **意図どおりFAIL** することを確認します。回帰テストには、必須語句を全て含みながら複数の言い回しで技術選択をユーザーに尋ねる矛盾回答、現在フェーズを否定する回答も含め、負例検出が動くことを確認しています。旧形式の単一結果Fixtureも引き続き使用できます。
+
+シナリオの採点条件が0件の場合は、0/0 PASSにせず設定エラーとして実行前に拒否します。現在フェーズを評価するケースでは、そのフェーズが回答で判断に接続されたかをassertionとして定義します。
+
+`--output` と `--json` は同じメタデータ限定artifactを出力します。回答本文、tool arguments/trace、Provider設定、scenario本文・生ID、ローカルパスは含めず、失敗理由は例外クラス名だけを記録します。configには条件ごとに再利用しない `experiment.id` が必要です。artifactにはexperiment/scenarioの生IDを使わない決定的なSHA-256参照を記録します。参照は匿名化ではないため、元IDとの対応と完全な実験条件はartifactとは分離してアクセス制御下で管理し、IDに個人情報や秘密を使わないでください。
 
 ```bash
 python3 -m unittest discover -s evals/tests -p 'test_*.py'

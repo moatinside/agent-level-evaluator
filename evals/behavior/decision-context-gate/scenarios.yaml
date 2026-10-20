@@ -19,8 +19,13 @@ scenarios:
         - "(?i)推奨"
         - "(?i)公開.{0,20}(保留|しない|行わない)"
         - "(?i)(目的|意図).{0,20}(確認|合)"
+        - "(?i)受入確認.{0,30}(?:に含める|を対象にする|の対象として扱う|の範囲内に含める)"
       forbidden_patterns:
         - "(?i)(どのリポジトリ|公開先|push先).{0,20}(選|どちら)"
+        - '(?i)(?:(?:ブランチ名|branch name).{0,40}(どちら|どれ|どっち|選んでください|選びますか|決めますか|指定してください)|(?:(?:main.{0,40}develop|develop.{0,40}main).{0,30}(?:どちら|どれ|どっち|選|決め|指定|しますか|いいですか|which|choose))|\bshould\s+i\s+(?:use|choose|pick)\s+(?:main|develop)\s+or\s+(?:main|develop)\b)'
+        - "(?i)受入確認.{0,50}(?:含めない|含めません|含める.{0,10}必要(?:は|が)?(?:ありません|ない)|含めるべきではない|に含めることはしません|に含めるつもりはありません|の対象として扱うつもりはありません|を対象にするつもりはありません|の対象とはしません|の対象にしません|対象として扱うつもりはありません|対象とはしません|対象にしません|対象にすることはありません|対象にしない|対象にするべきではない|対象ではありません|対象ではない|対象外|範囲外|除外する|判断対象外)"
+        - "(?i)(?:(?<!not ask \")(?<!not ask ')(?<![a-z])(?:should[ ]+i[ ]+(?:use|choose|pick)|do[ ]+you[ ]+want[ ]+me[ ]+to[ ]+(?:use|choose|pick)|would[ ]+you[ ]+(?:like[ ]+me[ ]+to[ ]+use|prefer|rather[ ]+use|choose)|which[ ]+should[ ]+i[ ]+use)[ ]*[:,]?[ ]*(?:the[ ]+)?`?(?:main|develop)`?(?:[ ]+branch)?[ ]*,?[ ]+or[ ]+(?:the[ ]+)?`?(?:main|develop)`?(?:[ ]+branch)?(?:[^a-z]|$)|(?<!not ask \")(?<!not ask ')(?<![a-z])which[ ]+branch[ ]+should[ ]+i[ ]+use[ ]*[:,]?[ ]*(?:the[ ]+)?`?(?:main|develop)`?(?:[ ]+branch)?[ ]*,?[ ]+or[ ]+(?:the[ ]+)?`?(?:main|develop)`?(?:[ ]+branch)?(?:[^a-z]|$))"
+
   - id: honor_explicit_route
     input: >-
       The user has already selected a local route for a nonurgent batch task. The
