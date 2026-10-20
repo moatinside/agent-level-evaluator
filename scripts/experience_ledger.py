@@ -86,8 +86,13 @@ def validate_record(record: Any) -> dict[str, Any]:
         return _result("inconclusive", "invalid schema version or experience_id")
     if not _TASK_REF.fullmatch(record["task_ref"]) or not _CONFIG_ID.fullmatch(record["configuration_id"]):
         return _result("inconclusive", "invalid task_ref or configuration_id")
-    if record["outcome"] not in _OUTCOMES or record["failure_class"] not in _FAILURES or record["approval"] not in _APPROVALS:
-        return _result("inconclusive", "invalid outcome, failure class, or approval")
+    # ENFORCE D-6: Type check outcome, failure_class, approval before enum membership
+    if not isinstance(record["outcome"], str) or record["outcome"] not in _OUTCOMES:
+        return _result("inconclusive", f"invalid outcome (must be string in {_OUTCOMES}, got {type(record['outcome']).__name__})")
+    if not isinstance(record["failure_class"], str) or record["failure_class"] not in _FAILURES:
+        return _result("inconclusive", f"invalid failure_class (must be string in {_FAILURES}, got {type(record['failure_class']).__name__})")
+    if not isinstance(record["approval"], str) or record["approval"] not in _APPROVALS:
+        return _result("inconclusive", f"invalid approval (must be string in {_APPROVALS}, got {type(record['approval']).__name__})")
     if not isinstance(record["lesson_summary"], str) or not record["lesson_summary"] or len(record["lesson_summary"]) > 280:
         return _result("inconclusive", "invalid lesson_summary")
     approval_fields = (record["approval_actor_ref"], record["approval_reason_ref"], record["approved_at"])

@@ -260,6 +260,13 @@ def main() -> int:
     total = len(all_tests)
     passed = sum(1 for t, _ in all_tests if t["pass"])
     failed = total - passed
+    # ENFORCE C-2: Zero checks is configuration error, not success
+    if total == 0:
+        if args.json:
+            print(f"\nSUMMARY: 0/0 passed (ERROR: no effective checks)", file=sys.stderr)
+        else:
+            print(f"\n🚨 総合: テスト定義がない、または全て除外されています (設定エラー)")
+        return 1  # fail closed: zero checks means config error
     if args.json:
         # JSON の時は stdout が汚れないよう stderr にサマリ
         print(f"\nSUMMARY: {passed}/{total} passed ({failed} failed)", file=sys.stderr)

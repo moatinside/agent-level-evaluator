@@ -198,7 +198,18 @@ def invoke(provider: dict[str, Any], request: dict[str, Any]) -> dict[str, Any]:
 
 
 def action_names(result: dict[str, Any], *, require_tool_trace: bool = False) -> list[str]:
-    selected = result["tool_trace"] if require_tool_trace else (result["tool_trace"] or result["actions"])
+    # ENFORCE C-1: structured/replay MUST use actions; command MUST use tool_trace
+    # Never fall back: if provider doesn't match expected source, fail closed
+    if require_tool_trace:
+        # command provider: must have tool_trace, no fallback to actions
+        if not isinstance(result.get("tool_trace"), list) or not result["tool_trace"]:
+            return []  # fail closed if trace not available
+        selected = result["tool_trace"]
+    else:
+        # structured/replay provider: must have actions, no fallback to trace
+        if not isinstance(result.get("actions"), list) or not result["actions"]:
+            return []  # fail closed if actions not available
+        selected = result["actions"]
     return [a.get("tool", "") for a in selected if isinstance(a.get("tool", ""), str)]
 
 
