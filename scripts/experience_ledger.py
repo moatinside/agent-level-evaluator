@@ -19,12 +19,20 @@ _APPROVALS = {"pending", "approved", "rejected", "obsolete"}
 _SECRET_RE = re.compile(r"(?i)(api[_-]?key|token|secret|password)=\S+")
 _URL_CRED_RE = re.compile(r"(?i)https?://[^\s/@:]+:[^\s/@]+@")
 _LOCAL_PATH_RE = re.compile(r"(?:/Users/[^\s]+|/home/[^\s]+|[A-Za-z]:\\[^\s]+)")
+# ENFORCE D-5: Enhanced PII detection patterns
+_EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
+_PHONE_RE = re.compile(r"\b(?:\+?1[-.\s]?)?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}\b")
+_JSON_SECRET_RE = re.compile(r'"(?:secret|password|apikey|token|credential)["\']?\s*:\s*["\'][^"\']+["\']')
 
 
 def _redacted_summary(value: str) -> str:
-    value = _URL_CRED_RE.sub("https://[REDACTED]@", value)
+    value = _URL_CRED_RE.sub("https://***@", value)
     value = _SECRET_RE.sub(lambda match: match.group(1) + "=[REDACTED]", value)
     value = _LOCAL_PATH_RE.sub("[LOCAL_PATH]", value)
+    # ENFORCE D-5: Redact email, phone, and JSON secrets
+    value = _EMAIL_RE.sub("[EMAIL]", value)
+    value = _PHONE_RE.sub("[PHONE]", value)
+    value = _JSON_SECRET_RE.sub('"secret":[REDACTED]', value)
     return value[:280]
 
 def _result(status: str, reason: str, **extra: Any) -> dict[str, Any]:

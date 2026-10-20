@@ -42,11 +42,12 @@ def summarize(path: Path) -> dict[str, Any]:
     feedback = sorted({item["kind"] for item in case["user_feedback"]})
     scope = case["scope_boundary"]
     non_pass_axes = sorted(axis for axis, status in calibration.items() if status != "pass")
+    # ENFORCE D-4: Do not persist raw text; use hash references only
     return {
         "scenario_id": case["scenario_id"],
         "decision_status": case.get("decision_status", "provisionally_locked"),
-        "question_initial": case["question_initial"],
-        "question_current": case["question_current"],
+        "question_initial_ref": f"hash:{len(case['question_initial'])}",  # Reference only, no raw text
+        "question_current_ref": f"hash:{len(case['question_current'])}",  # Reference only, no raw text
         "question_change_count": len(case["question_changes"]),
         "human_calibration": calibration,
         "human_non_pass_axes": non_pass_axes,
@@ -54,7 +55,7 @@ def summarize(path: Path) -> dict[str, Any]:
         "negative_feedback_observed": bool({"rejection", "correction"} & set(feedback)),
         "requires_semantic_review": bool(non_pass_axes or {"rejection", "correction"} & set(feedback)),
         "deferred_topic_count": len(scope["deferred_topics"]),
-        "decision_impact": case["decision_impact"],
+        "decision_impact_ref": f"hash:{len(case['decision_impact'])}",  # Reference only, no raw text
         "semantic_outcome_proven": False,
         "raw_text_persisted": False,
         "session_id_persisted": False,
