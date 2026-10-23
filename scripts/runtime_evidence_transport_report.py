@@ -32,6 +32,11 @@ from scripts.runtime_evidence_contract import (
     MAX_RECORD_HASH_BYTES,
     structural_disposition,
 )
+from scripts.runtime_evidence_settle_journal import (
+    SettleJournalError,
+    load_settle_journal_snapshot,
+    reconcile,
+)
 
 REPORT_SCHEMA_VERSION = 2
 MAX_REPORT_RECORDS = 100_000
@@ -78,8 +83,14 @@ def build_runtime_evidence_transport_report(
     *,
     sink_id: str,
     max_records: int,
+    journal_markers: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Build a bounded transport-only report; callers must choose both DB paths."""
+    """Build a bounded transport-only report; callers must choose both DB paths.
+
+    ``emitted`` stays null unless an explicitly loaded R2 settle-journal snapshot is
+    passed (see ``scripts/runtime_evidence_settle_journal.py``); it is then a lower
+    bound with a separate journal/Outbox reconciliation section.
+    """
     outbox_path = Path(outbox_db_path)
     ledger_path = Path(ledger_db_path)
     if not outbox_path.is_absolute() or not ledger_path.is_absolute():
@@ -302,7 +313,7 @@ def build_runtime_evidence_transport_report(
     orphaned = sum(1 for event_ref in ledger_by_ref if event_ref not in outbox_by_ref)
     report_status = "incomplete" if any(anomalies.values()) else "partial"
 
-    return {
+    report = {
         "report_schema_version": REPORT_SCHEMA_VERSION,
         "report_status": report_status,
         "sink_id": sink_id,
@@ -350,6 +361,12 @@ def build_runtime_evidence_transport_report(
             "legacy_evidence_included": False,
         },
     }
+    if journal_markers is not None:
+        reconciliation = reconcile(journal_markers, set(outbox_by_ref))
+        report["counts"]["emitted"] = reconciliation["journal_settled"]
+        del report["unavailable_count_reasons"]["emitted"]
+        report["capture_reconciliation"] = reconciliation
+    return report
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -358,15 +375,20 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ledger-db", required=True)
     parser.add_argument("--sink-id", required=True)
     parser.add_argument("--max-records", required=True, type=int)
+    parser.add_argument("--journal-snapshot", help="absolute path to an exported R2 settle-marker JSONL")
     args = parser.parse_args(argv)
     try:
+        journal_markers = (
+            load_settle_journal_snapshot(args.journal_snapshot) if args.journal_snapshot else None
+        )
         report = build_runtime_evidence_transport_report(
             args.outbox_db,
             args.ledger_db,
             sink_id=args.sink_id,
             max_records=args.max_records,
+            journal_markers=journal_markers,
         )
-    except (ConsumerError, RuntimeEvidenceReportError) as exc:
+    except (ConsumerError, RuntimeEvidenceReportError, SettleJournalError) as exc:
         print(json.dumps({"status": "error", "error_code": exc.code}, sort_keys=True))
         return 2
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
