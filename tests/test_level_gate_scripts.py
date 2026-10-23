@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -124,6 +125,73 @@ class PromotionGateTests(unittest.TestCase):
         self.assertEqual(result["records_considered"], 0)
         self.assertEqual(result["records_excluded_environment"], 1)
         self.assertEqual(shadow_result["records_considered"], 1)
+
+    def test_runtime_legacy_directory_is_outside_promotion_scan_roots(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            legacy_dir = root / "runtime-evidence" / "agent-level"
+            legacy_dir.mkdir(parents=True)
+            legacy_file = legacy_dir / "live-shadow.jsonl"
+            candidate = evidence(1, "O")
+            candidate["assessment_id"] = "synthetic-legacy-path-control"
+            candidate["integrity_hash"] = "sha256:" + hashlib.sha256(
+                json.dumps(
+                    {k: v for k, v in candidate.items() if k != "integrity_hash"},
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest()
+            legacy_file.write_text(json.dumps(candidate) + "\n", encoding="utf-8")
+
+            self.assertTrue(legacy_file.is_file())
+            result = promotion.assess(root)
+            self.assertEqual(result["files_scanned"], 0)
+            self.assertEqual(result["records_considered"], 0)
+
+            # Control: the same valid synthetic record is accepted if the scan includes it.
+            with patch.object(promotion, "_iter_paths", return_value=iter([legacy_file])):
+                records, stats = promotion.collect_records_with_stats(root)
+            self.assertEqual(len(records), 1)
+            self.assertEqual(stats["records_eligible_scanned"], 1)
+
+    def test_mixed_agent_configurations_are_not_aggregated(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            evidence_dir = root / "operational-evidence"
+            evidence_dir.mkdir()
+            first = evidence(1, "O")
+            second = evidence(1, "O")
+            second["assessment_id"] = "test-agent-config-b"
+
+            def reseal(record):
+                record["integrity_hash"] = "sha256:" + hashlib.sha256(
+                    json.dumps(
+                        {k: v for k, v in record.items() if k != "integrity_hash"},
+                        ensure_ascii=False,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ).encode("utf-8")
+                ).hexdigest()
+
+            reseal(second)
+            first_path = evidence_dir / "first.json"
+            second_path = evidence_dir / "second.json"
+            first_path.write_text(json.dumps(first), encoding="utf-8")
+            second_path.write_text(json.dumps(second), encoding="utf-8")
+
+            same_config = promotion.assess(root)
+            self.assertEqual(same_config["records_considered"], 2)
+            self.assertEqual(same_config["invalid_record_errors"], [])
+
+            second["agent_configuration_id"] = "sha256:" + "b" * 64
+            reseal(second)
+            second_path.write_text(json.dumps(second), encoding="utf-8")
+            mixed_config = promotion.assess(root)
+
+        self.assertEqual(mixed_config["records_considered"], 0)
+        self.assertEqual(mixed_config["accepted_assessment_ids"], [])
+        self.assertTrue(any("mixed agent_configuration_id values" in error for error in mixed_config["invalid_record_errors"]))
 
     def test_reclassification_does_not_promote(self):
         with tempfile.TemporaryDirectory() as directory:
