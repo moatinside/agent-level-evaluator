@@ -221,6 +221,9 @@ python3 evals/run_evals.py --ablate   # アブレーション（スキル有無�
 2. **現行状態を確認**: `python3 scripts/evaluate_current_state.py`
 3. **移行状態を監査**: `python3 scripts/audit_legacy_pipeline.py --root .`
 4. **Evidenceを監査**: `python3 scripts/evidence_report.py --summary`（既定では `production-like` / `production` のみ。Shadowは `--environment-class shadow` で明示）
+
+Outbox/ledgerのtransport状況も同じレポートに添付する場合は、`--runtime-outbox-db`、`--runtime-ledger-db`、`--runtime-sink-id`、`--runtime-max-records`をすべて明示してください。出力の`runtime_transport`はEvidence記録・Promotion統計と分離されます。`outcome_counts`はaccepted・reason別rejected・境界別conflictを件数のみで表示し、durableな観測値がないduplicateは`null`です。`emitted`、`measurement_complete`、`evaluation_eligible`も未実装の間`null`です。既定のDB pathやruntime rootの自動読取りはありません。
+
 5. **定期評価**: Evidence Gateの結果だけをcron等で観測し、Levelを自動昇格しない
 
 評価結果を報告するだけでは、レベルアップとはみなしません。実行可能な成果物、合格テスト、実行ログが揃って初めてチェックポイントを完了扱いにします。

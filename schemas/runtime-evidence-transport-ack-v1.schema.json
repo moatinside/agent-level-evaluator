@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agent-level-evaluator:runtime-evidence-transport-ack:1",
+  "title": "Runtime Evidence Transport ACK V1",
+  "description": "Separate transport receipt created only after exact ledger-row read-back. It is not an assessment record or cryptographic attestation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "receipt_type",
+    "receipt_schema_version",
+    "sink_id",
+    "event_ref",
+    "payload_hash",
+    "event_schema_version",
+    "disposition",
+    "ledger_record_hash",
+    "readback_status",
+    "acknowledged_at"
+  ],
+  "properties": {
+    "receipt_type": {"const": "runtime_evidence_transport_ack"},
+    "receipt_schema_version": {"const": 1},
+    "sink_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+      "maxLength": 64
+    },
+    "event_ref": {
+      "type": "string",
+      "pattern": "^hmac-sha256:v[1-9][0-9]*:[a-f0-9]{64}$",
+      "maxLength": 96
+    },
+    "payload_hash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "maxLength": 71
+    },
+    "event_schema_version": {"const": 2},
+    "disposition": {"enum": ["persisted", "duplicate"]},
+    "ledger_record_hash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "maxLength": 71
+    },
+    "readback_status": {"const": "exact_match"},
+    "acknowledged_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:[0-9]{3}[1-9]|[0-9]{2}[1-9][0-9]|[0-9][1-9][0-9]{2}|[1-9][0-9]{3})-(?:(?:01|03|05|07|08|10|12)-(?:0[1-9]|[12][0-9]|3[01])|(?:04|06|09|11)-(?:0[1-9]|[12][0-9]|30)|02-(?:0[1-9]|1[0-9]|2[0-8]))|(?:[0-9]{2}(?:0[48]|[2468][048]|[13579][26])|(?:0[48]|[2468][048]|[13579][26])00)-02-29)T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]+)?Z$",
+      "maxLength": 32
+    }
+  }
+}

@@ -220,3 +220,38 @@ A quarantine audit failure is not silently ignored. It is reported as a failed a
 - Historical records remain available for forensic review and reason analysis.
 - Quarantine placement must remain outside `operational-evidence/` because the active Promotion Gate scans that directory recursively.
 - Future collection should validate in staging and publish only validated records to Active Evidence; failed output should enter quarantine.
+
+## Decision note — WP5 source architecture
+
+- **Status**: selected design direction; producer contract and runtime integration remain unimplemented; source access conditions remain unspecified
+- **Decision source**: user chose option A in response to the assistant's recommended choices in Discord message `1562490297089523805`; treat as acceptance of the presented design direction, not an independently formulated architecture requirement
+- **Decision**: choose option A's producer-owned event-row architecture: a producer stage upstream of WP5 emits ordered, closed-code event rows grouped by an episode manifest. WP5 resolves the complete closed episode using user-specified `scope_ref` and `episode_ref`; it does not reconstruct episodes from aggregate V2 trace counts or accept caller-selected event subsets.
+- **Compatibility constraint**: the existing work plan defines WP4 as a transport-only Gateway Runtime Observer. It does not currently produce semantic episode rows. The selection does not establish that the existing WP4 Observer is the intended producer or authorize expanding its responsibilities; producer ownership and input source remain unresolved.
+- **Scope boundary**: this selects the architecture only. It does not authorize Gateway changes, live event capture, real-conversation access, durable storage, or external sharing.
+- **Consequences**: validate the manifest + ordered-row contract with synthetic SQLite fixtures first. The `closed` flag and expected count are producer assertions, not independent capture-completeness proof.
+- **Open before runtime**: establish the actual source ownership/access boundary and ACL; do not assume a separate human approver, because the requester is the sole project decision-maker. Fix the exact snapshot/profile/episode scope and any source-side access constraint; verify complete-capture receipt and recovery reconciliation for JSONL spool/shutdown snapshot; runtime episode-boundary evidence; user-specified semantic codebook and observed/derived provenance; opaque-reference custody and retention; packet display/retention and independent rater conditions. Recommended initial row policy is recorded in `docs/wp5-episode-assembler-design.md`; it governs continued fixture/contract work and does not itself identify or open a live source.
+
+## WP5 recommended source-adapter boundary
+
+- **Status**: selected target architecture; source admission and runtime integration remain gated
+- **Decision source**: user direction in Discord message `1562639576923775088` to proceed with the recommended configuration
+- **Decision**: keep WP4 transport-only. The Evaluator owns a source-agnostic `EpisodeResolver` contract and assembly. Source-specific adaptation and semantic event production remain a separate Evaluator-side stage consuming a user-selected, source-side immutable snapshot through an injected read-only connection. The user is the sole project decision-maker; no separate approver is presumed. Actual source access constraints still apply.
+- **Initial admission policy**: one explicit episode boundary and one lineage; sort by source insertion ID; reject inactive/rewind or compaction-archived history, unresolved ancestor/child lineage, incomplete pagination, and any unresolved spool/recovery artifact. Require a source-side complete-capture receipt plus recovery reconciliation; row counts, `ended_at`, or `closed` alone are insufficient. Fixture-only `AdmissionEvidence` now requires eight explicit positive checks; it validates resolver contract shape, not the authenticity of source receipts.
+- **Read consistency**: manifest and event rows are read inside one SQLite snapshot. A WAL fixture with a second writer reproduces a mutation between the two reads; the resolver must return the pre-update row set. This protects fixture resolution from mixed generations and does not prove an external snapshot is immutable or complete.
+- **Content and retention**: conversation text may be inspected only for a user-specified, bounded purpose and scope through a source access path that is actually permitted; raw conversation or tool arguments are never persisted in the Evaluator. Snapshot storage, expiry, and deletion terms must be explicit before any read. Emit only allowlisted codes and opaque refs. Until those conditions are concrete, do not read source content and return `input_unavailable`.
+- **Boundary**: this selects design defaults and a local interface, and authorizes continued local fixture/contract work. It does not by itself establish the source's ownership/access boundary, identify a snapshot, or execute a live SessionDB read or Gateway/runtime change.
+
+## WP5 calibration comparator response contract
+
+- **Status**: local synthetic contract implemented; independent human calibration remains unverified
+- **Contract**: each rater response carries a bounded opaque `rater_ref`. The comparator rejects the same response file or repeated `rater_ref`; distinct refs with identical labels are counted as agreement, because identical judgments can be valid independent outcomes. The output omits `rater_ref`.
+- **Evidence boundary**: a distinct ref is an input integrity check, not proof that two different people independently rated blind packets. Assignment, blinding, actual rater participation, and packet safety remain separate evidence requirements.
+
+## Decision note — WP3 category-count reporting
+
+- **Status**: accepted; evaluator fixture implementation verified, runtime integration remains open
+- **Accepted at**: 2026-10-23 JST
+- **Decision source**: user selected count-only reporting and category-level acceptance criteria in the current Discord exchange
+- **Decision**: replace per-event accepted/rejected/duplicate/conflict lists with category-level counts. Reports must not expose per-event opaque references.
+- **Counting contract**: `accepted` counts exact consumer ACKs; `rejected` is split by invalid outbox rows, invalid ledger rows, and invalid receipts; `conflict` reports Outbox and ledger conflict rows separately. `duplicate` remains `null` with a reason code until duplicate occurrences are durably observed. Reason buckets count rows/receipts, not unique events, and must not be summed as a distinct-event total.
+- **Boundary**: this resolves the report-privacy format only. It does not complete WP2/WP3 or authorize Gateway, SessionDB, R2, or production access.

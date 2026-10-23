@@ -1,0 +1,65 @@
+{
+  "manifest_version": 1,
+  "classification": "legacy_gateway_shadow",
+  "source_file": "~/.hermes/runtime-evidence/agent-level/live-shadow.jsonl",
+  "immutable_source": true,
+  "inventory_scope": "metadata-only aggregate; no row values or identifiers retained",
+  "file": {
+    "sha256": "375f16a7f0d4d72a1d0af17db1b930a509be94a3bd398225bb43bb71704bc42c",
+    "bytes": 231812,
+    "lines": 119,
+    "parsed_records": 119,
+    "malformed_lines": 0,
+    "integrity_hash_field_present": 119,
+    "integrity_hashes_recomputed": false
+  },
+  "recorded_time": {
+    "field": "started_at",
+    "minimum": "2026-10-05T03:12:51Z",
+    "maximum": "2026-10-16T09:22:08Z"
+  },
+  "aggregate_values": {
+    "schema_version": {
+      "1": 119
+    },
+    "evidence_origin": {
+      "hermes_gateway": 119
+    },
+    "environment_class": {
+      "shadow": 119
+    },
+    "evidence_class": {
+      "O": 119
+    },
+    "result": {
+      "inconclusive": 119
+    },
+    "acceptance_results.final_status": {
+      "inconclusive": 119
+    },
+    "level": {
+      "5": 119
+    },
+    "capability_id": {
+      "self_reflection": 119
+    }
+  },
+  "field_presence": {
+    "runtime_event_ref": 119,
+    "execution_mode": 0,
+    "decision": 0,
+    "side_effect_status": 0
+  },
+  "message_like_top_level_key_presence": {
+    "text": 0,
+    "content": 0,
+    "final_text": 0,
+    "user_message": 0,
+    "assistant_message": 0,
+    "prompt": 0,
+    "response": 0,
+    "message": 0
+  },
+  "provenance_limit": "Fields identify hermes_gateway origin, but this JSONL alone cannot prove ordinary-conversation provenance for each row.",
+  "promotion_status": "excluded_from_v2_semantic_evaluation_and_promotion"
+}

@@ -52,7 +52,7 @@ PYTHONPATH=. uv run --with pytest --with pyyaml python scripts/evidence_report.p
 
 ## Human Calibrationの運用
 
-判定基準は `docs/human-calibration-rubric.md` に定義した。評価者Bの独立回答を取得した後、次の形式で比較する。
+判定基準は `docs/human-calibration-rubric.md` に定義した。評価者Bの独立回答を取得した後、次の形式で比較する。各response fileには別々のopaque `rater_ref`を付与する。同じラベルが全軸で一致しても、別々のrefが付いた独立評価の可能性があるため、比較器は一致として扱う。`rater_ref`は比較結果へ出力しない。refの違いだけでは独立性を証明できないため、評価者の割当・盲検・参加記録は別途確認する。
 
 ```bash
 uv run --with pytest --with pyyaml python scripts/compare_human_calibration.py \\
@@ -61,7 +61,7 @@ uv run --with pytest --with pyyaml python scripts/compare_human_calibration.py \
   --output /tmp/human-calibration-comparison.json
 ```
 
-現在は評価者A（ユーザー）の回答だけがあり、評価者Bの独立回答は未取得である。そのため、実際の評価者間一致率はまだ報告しない。実装テストの同一入力による一致率`1.0`は、比較ロジックのSmoke Testであり、評価者間一致の証拠ではない。
+現在は評価者A（ユーザー）の回答だけがあり、評価者Bの独立回答は未取得である。そのため、実際の評価者間一致率はまだ報告しない。比較器は通常比較で同一fileまたは同じopaque `rater_ref`を拒否し、判定ラベルが全軸一致する別々のrater_refはagreementとして数える。`rater_ref`は比較出力に含めないが、実際の評価者独立性を証明するものではない。同じ入力を使うCLI smokeには`--smoke-only`が必要で、結果も`smoke_only`と表示される。これは比較器の動作確認であり、評価者間一致の証拠ではない。
 
 
 `scripts/compare_real_conversation_calibration.py`で、`source_class=real_new_business_brainstorm`の4件だけを比較した。制御fixtureは入力時に拒否される。

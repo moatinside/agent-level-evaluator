@@ -117,6 +117,26 @@ Human Calibrationは、Traceが存在するかではなく、問いの形成・�
 
 一致率は単純一致件数 ÷ 比較可能な軸数で計算する。ただし、ケース数が少ない間は統計的な信頼性を主張しない。意見が割れた軸は、ラベルを平均化せず、根拠を再レビューして基準を修正する。
 
+### 比較器へ渡す応答ファイルの形式
+
+各評価者の応答は、同じ `scenario_id` と5軸のラベルを含むJSONとして別々に用意する。`rater_ref`には評価者ごとに異なるopaque referenceを割り当てる。比較器は同一ファイルまたは同一refの通常比較を拒否するが、異なるrefが実際に別人へ割り当てられたことや、盲検で採点されたことは検証しない。
+
+```json
+{
+  "scenario_id": "case:example-only",
+  "rater_ref": "rater:example-a",
+  "human_calibration": [
+    {"axis": "initial_question_capture", "status": "not_observable"},
+    {"axis": "evidence_driven_update", "status": "not_observable"},
+    {"axis": "question_update_rationale", "status": "not_observable"},
+    {"axis": "decision_proximity", "status": "not_observable"},
+    {"axis": "feedback_interpretation", "status": "not_observable"}
+  ]
+}
+```
+
+これは形式例のみで、実際の評価結果ではない。実ファイルでは提示された同一caseの `scenario_id` を使い、各raterには別々のrefを割り当てる。比較後のラベル一致は記述的なagreementであり、評価者の独立性・盲検性・rubricの妥当性の証明には使わない。
+
 ## 現在の限界
 
 - 現在の4件は単一ユーザーによる評価で、評価者間一致度は未確認
