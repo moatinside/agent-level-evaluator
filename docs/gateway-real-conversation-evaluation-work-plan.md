@@ -1,5 +1,7 @@
 # Gateway実会話観測からAgent能力・レベルを評価するための作業計画書
 
+> **別トラックの履歴・設計資料（2026-10-28追記）**: 本書のWP0〜WP7はmetadata-only Gateway/Outbox/Shadow経路。保存済み会話をClaude Codeで評価する日次レポートCronの復旧作業順・実稼働受入条件は [実会話レビューv2の実稼働作業計画](usable-first-plan.md) を正本とする。本書のWPをその前提工程として再開しない。Gateway接続は別途判断する。
+
 - 作成日: 2026-10-20
 - 状態: **WP0/WP1のv5 exact-set静的レビューPASS。2026-10-20の依頼によりWP2 transport primitiveとWP3 reportの隔離実装・fixture検証を開始。WP2 full acceptance／Gateway接続／実会話評価は未完**
 - 対象:

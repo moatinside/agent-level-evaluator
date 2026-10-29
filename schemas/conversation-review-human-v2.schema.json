@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "conversation-review-human-v2.schema.json",
+  "title": "Conversation Review Human Calibration v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "comparison_type", "evaluation_ref", "input_hash", "updated_at", "axes", "causal_reviews"],
+  "properties": {
+    "schema_version": {"const": 2},
+    "comparison_type": {"const": "model_vs_human"},
+    "evaluation_ref": {"type": "string", "pattern": "^[a-f0-9]{12}$"},
+    "input_hash": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "updated_at": {"type": "string", "minLength": 1},
+    "axes": {"type": "array", "minItems": 6, "maxItems": 6, "items": {"$ref": "#/$defs/axis"}},
+    "causal_reviews": {"type": "array", "items": {"$ref": "#/$defs/causal"}}
+  },
+  "$defs": {
+    "axis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["axis", "review_status", "status", "reason"],
+      "properties": {
+        "axis": {"enum": ["initial_question_capture", "evidence_driven_update", "question_update_rationale", "decision_proximity", "feedback_interpretation", "instruction_adherence"]},
+        "review_status": {"enum": ["pending", "recorded"]},
+        "status": {"enum": ["pass", "partial", "fail", "not_observable", null]},
+        "reason": {"type": ["string", "null"], "maxLength": 300}
+      }
+    },
+    "causal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["change_id", "review_status", "verdict", "reason"],
+      "properties": {
+        "change_id": {"type": "string", "pattern": "^update-[0-9]{3}$"},
+        "review_status": {"enum": ["pending", "recorded"]},
+        "verdict": {"enum": ["supported", "rejected", "not_observable", null]},
+        "reason": {"type": ["string", "null"], "maxLength": 300}
+      }
+    }
+  }
+}

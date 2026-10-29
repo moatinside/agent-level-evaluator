@@ -22,7 +22,8 @@
 - 旧PhaseのExecutor: `archive/legacy-phase/` にアーカイブ済み
 - Phase 2.3: 開発実験の履歴として保持し、Level昇格には使用しない
 - 自動昇格: 無効（人間の承認が必要）
-- Production接続・cron切替: 未実施（別途承認が必要）
+- Production/通常Agent接続: 未実施（別途承認が必要）。レポート専用Cronは承認済みだが、10/27・10/28の実会話評価は失敗し、定期E2E未確認
+- 実会話レビューv2の復旧・実稼働作業計画（ローカル未コミット）: [docs/usable-first-plan.md](docs/usable-first-plan.md)
 - 通常Agent接続前の契約整理: [docs/evidence-runtime-contract.md](docs/evidence-runtime-contract.md)
 - Capability追加前の測定可能性設計: [docs/measurement-first-capability-design.md](docs/measurement-first-capability-design.md)
 - 事業開発会話の協働・拡張学習評価: [docs/business-development-trajectory-reconstruction.md](docs/business-development-trajectory-reconstruction.md)

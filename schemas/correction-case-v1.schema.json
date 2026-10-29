@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "correction-case-v1.schema.json",
+  "title": "Human-confirmed correction case candidate v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "case_ref", "case_kind", "source", "human_failure", "target", "correction_summary", "expected_behavior", "regression_input", "post_correction_observation", "case_status", "execution_status", "approval_status", "created_at"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "case_ref": {"type": "string", "pattern": "^[a-f0-9]{16}$"},
+    "case_kind": {"const": "human_confirmed_correction_candidate"},
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["evaluation_ref", "input_hash", "axis"],
+      "properties": {
+        "evaluation_ref": {"type": "string", "pattern": "^[a-f0-9]{12}$"},
+        "input_hash": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+        "axis": {"type": "string"}
+      }
+    },
+    "human_failure": {
+      "type": "object", "additionalProperties": false, "required": ["status", "reason"],
+      "properties": {"status": {"const": "fail"}, "reason": {"type": "string", "minLength": 1, "maxLength": 300}}
+    },
+    "target": {
+      "type": "object", "additionalProperties": false, "required": ["position", "actual_behavior_excerpt"],
+      "properties": {"position": {"type": "integer", "minimum": 1}, "actual_behavior_excerpt": {"type": "string", "minLength": 1, "maxLength": 240}}
+    },
+    "correction_summary": {"type": "string", "minLength": 1, "maxLength": 300},
+    "expected_behavior": {"type": "string", "minLength": 1, "maxLength": 300},
+    "regression_input": {
+      "type": "object", "additionalProperties": false,
+      "required": ["messages_before_target", "context_status", "after_correction_answer_or_label_included"],
+      "properties": {
+        "messages_before_target": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["position", "role", "excerpt"],
+            "properties": {"position": {"type": "integer", "minimum": 1}, "role": {"enum": ["user", "assistant"]}, "excerpt": {"type": "string", "minLength": 1, "maxLength": 240}}
+          }
+        },
+        "context_status": {"enum": ["pending_context_review", "excerpts_only_review_required"]},
+        "after_correction_answer_or_label_included": {"const": false}
+      }
+    },
+    "post_correction_observation": {
+      "type": "object", "additionalProperties": false, "required": ["status", "position"],
+      "properties": {"status": {"const": "not_observed"}, "position": {"type": "null"}}
+    },
+    "case_status": {"const": "candidate_pending_context_review"},
+    "execution_status": {"const": "not_run"},
+    "approval_status": {"const": "pending"},
+    "created_at": {"type": "string", "minLength": 1}
+  }
+}

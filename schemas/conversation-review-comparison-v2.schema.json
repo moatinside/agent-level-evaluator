@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "conversation-review-comparison-v2.schema.json",
+  "title": "Conversation Review Comparison v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "comparison_type", "evaluation_ref", "input_hash", "axis_count", "pending_axis_count", "agreement_count", "agreement_rate", "comparison_counts", "axes", "causal_review_counts", "interpretation_boundary"],
+  "properties": {
+    "schema_version": {"const": 2}, "comparison_type": {"const": "model_vs_human"},
+    "evaluation_ref": {"type": "string", "pattern": "^[a-f0-9]{12}$"}, "input_hash": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "axis_count": {"type": "integer", "minimum": 0, "maximum": 6}, "pending_axis_count": {"type": "integer", "minimum": 0, "maximum": 6},
+    "agreement_count": {"type": "integer", "minimum": 0, "maximum": 6}, "agreement_rate": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "comparison_counts": {"type": "object", "additionalProperties": false, "required": ["agreement", "overcall", "undercall", "unobservable_mismatch"], "properties": {"agreement": {"type": "integer", "minimum": 0}, "overcall": {"type": "integer", "minimum": 0}, "undercall": {"type": "integer", "minimum": 0}, "unobservable_mismatch": {"type": "integer", "minimum": 0}}},
+    "axes": {"type": "array", "minItems": 6, "maxItems": 6, "items": {"type": "object", "additionalProperties": false, "required": ["axis", "model_status", "human_status", "comparison"], "properties": {"axis": {"type": "string"}, "model_status": {"type": "string"}, "human_status": {"type": ["string", "null"]}, "comparison": {"enum": ["agreement", "overcall", "undercall", "unobservable_mismatch", "pending"]}}}},
+    "causal_review_counts": {"type": "object", "additionalProperties": false, "required": ["pending", "supported", "rejected", "not_observable"], "properties": {"pending": {"type": "integer", "minimum": 0}, "supported": {"type": "integer", "minimum": 0}, "rejected": {"type": "integer", "minimum": 0}, "not_observable": {"type": "integer", "minimum": 0}}},
+    "interpretation_boundary": {"type": "object", "additionalProperties": false, "required": ["model_human_comparison", "causality_proven", "agent_improvement_proven", "promotion_decision"], "properties": {"model_human_comparison": {"const": "descriptive_only"}, "causality_proven": {"const": false}, "agent_improvement_proven": {"const": false}, "promotion_decision": {"const": "not_authorized"}}}
+  }
+}

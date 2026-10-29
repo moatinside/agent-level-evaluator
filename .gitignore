@@ -2,3 +2,6 @@
 __pycache__/
 *.pyc
 .DS_Store
+
+# Local-only conversation evaluation material
+conversation-review-output/
