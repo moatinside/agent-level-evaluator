@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "conversation-review-v2.schema.json",
+  "title": "Conversation Review v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "evaluation_ref", "input_hash", "created_at", "evaluator", "rubric_hash", "input", "axes", "trajectory", "human_review"],
+  "properties": {
+    "schema_version": {"const": 2},
+    "evaluation_ref": {"type": "string", "pattern": "^[a-f0-9]{12}$"},
+    "input_hash": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "created_at": {"type": "string", "minLength": 1},
+    "evaluator": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "model_id", "configuration"],
+      "properties": {"name": {"const": "Claude Code"}, "model_id": {"type": "string"}, "configuration": {"type": "string"}}
+    },
+    "rubric_hash": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "input": {
+      "type": "object", "additionalProperties": false,
+      "required": ["message_count", "active_only", "tool_results_omitted", "max_message_chars", "truncated_positions", "tool_result_positions", "metadata_positions", "summary_positions", "summary_detection", "transcript_saved"],
+      "properties": {
+        "message_count": {"type": "integer", "minimum": 1}, "active_only": {"const": true},
+        "tool_results_omitted": {"const": true}, "max_message_chars": {"const": 1500},
+        "truncated_positions": {"type": "array", "items": {"type": "integer", "minimum": 1}},
+        "tool_result_positions": {"type": "array", "items": {"type": "integer", "minimum": 1}},
+        "metadata_positions": {"type": "array", "items": {"type": "integer", "minimum": 1}},
+        "summary_positions": {"type": "array", "items": {"type": "integer", "minimum": 1}},
+        "summary_detection": {"type": "string", "minLength": 1}, "transcript_saved": {"const": false}
+      }
+    },
+    "axes": {"type": "array", "minItems": 6, "maxItems": 6, "items": {"$ref": "#/$defs/axis"}},
+    "trajectory": {"$ref": "#/$defs/trajectory"},
+    "human_review": {"type": "object", "additionalProperties": false, "required": ["review_status"], "properties": {"review_status": {"const": "pending"}}}
+  },
+  "$defs": {
+    "span": {
+      "type": "object", "additionalProperties": false, "required": ["position", "start", "end", "role", "excerpt"],
+      "properties": {"position": {"type": "integer", "minimum": 1}, "start": {"type": "integer", "minimum": 0}, "end": {"type": "integer", "minimum": 1}, "role": {"enum": ["user", "assistant"]}, "excerpt": {"type": "string", "minLength": 1, "maxLength": 240}}
+    },
+    "axis": {
+      "type": "object", "additionalProperties": false, "required": ["axis", "status", "reason", "evidence_positions", "evidence_spans"],
+      "properties": {
+        "axis": {"enum": ["initial_question_capture", "evidence_driven_update", "question_update_rationale", "decision_proximity", "feedback_interpretation", "instruction_adherence"]},
+        "status": {"enum": ["pass", "partial", "fail", "not_observable"]}, "reason": {"type": "string", "minLength": 1, "maxLength": 500},
+        "evidence_positions": {"type": "array", "items": {"type": "integer", "minimum": 1}}, "evidence_spans": {"type": "array", "items": {"$ref": "#/$defs/span"}}
+      }
+    },
+    "question": {
+      "type": "object", "additionalProperties": false, "required": ["summary", "evidence_spans", "unobservable_reason"],
+      "properties": {"summary": {"type": ["string", "null"], "maxLength": 500}, "evidence_spans": {"type": "array", "items": {"$ref": "#/$defs/span"}}, "unobservable_reason": {"type": ["string", "null"], "maxLength": 500}}
+    },
+    "events": {
+      "type": "object", "additionalProperties": false, "required": ["evidence", "agent_update", "user_judgment"],
+      "properties": {"evidence": {"type": "array", "items": {"type": "integer", "minimum": 1}}, "agent_update": {"type": "array", "items": {"type": "integer", "minimum": 1}}, "user_judgment": {"type": "array", "items": {"type": "integer", "minimum": 1}}}
+    },
+    "cause": {
+      "type": "object", "additionalProperties": false, "required": ["summary", "evidence_spans"],
+      "properties": {"summary": {"type": "string", "minLength": 1, "maxLength": 500}, "evidence_spans": {"type": "array", "items": {"$ref": "#/$defs/span"}}}
+    },
+    "causal_review": {
+      "type": "object", "additionalProperties": false, "required": ["review_status", "verdict", "reason"],
+      "properties": {"review_status": {"const": "pending"}, "verdict": {"type": "null"}, "reason": {"type": "null"}}
+    },
+    "change": {
+      "type": "object", "additionalProperties": false,
+      "required": ["change_id", "before", "after", "observed_order", "event_positions", "evidence_spans", "cause_hypothesis", "causal_review", "decision_impact", "next_validation", "outcome"],
+      "properties": {
+        "change_id": {"type": "string", "pattern": "^update-[0-9]{3}$"}, "before": {"type": "string", "minLength": 1, "maxLength": 500}, "after": {"type": "string", "minLength": 1, "maxLength": 500},
+        "observed_order": {"enum": ["evidence_agent_update_user_judgment", "user_judgment_agent_structuring", "not_observable"]}, "event_positions": {"$ref": "#/$defs/events"},
+        "evidence_spans": {"type": "array", "items": {"$ref": "#/$defs/span"}}, "cause_hypothesis": {"oneOf": [{"$ref": "#/$defs/cause"}, {"type": "null"}]},
+        "causal_review": {"$ref": "#/$defs/causal_review"}, "decision_impact": {"type": ["string", "null"], "maxLength": 500},
+        "next_validation": {"type": ["string", "null"], "maxLength": 500}, "outcome": {"enum": ["go", "conditional_go", "no_go", "on_hold", "intentionally_deferred", "inconclusive", "blocked", "safe_stop", "unknown"]}
+      }
+    },
+    "trajectory": {
+      "type": "object", "additionalProperties": false, "required": ["question_initial", "question_current", "question_changes"],
+      "properties": {"question_initial": {"$ref": "#/$defs/question"}, "question_current": {"$ref": "#/$defs/question"}, "question_changes": {"type": "array", "maxItems": 30, "items": {"$ref": "#/$defs/change"}}}
+    }
+  }
+}

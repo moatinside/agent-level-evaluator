@@ -16,6 +16,16 @@
 - `archive/legacy-phase/`配下のExecutorやPhase表を現行の実行入口として呼び出さない。
 - 設計書・自己申告・ファイルの存在だけでは能力達成と判定しない。実行成果物、テスト、失敗系、運用証拠を分けて確認する。
 
+### 実会話レビュー v2（ローカル限定）
+
+- `scripts/run_conversation_review_cycle.py`だけが、許可済み候補選定・JST日次上限・共有試行台帳を通じて新形式評価を実行する。直接評価CLIはdry-run専用。
+- 実会話由来の`evaluation.json`、`report.md`、校正・比較・訂正候補は`conversation-review-output/`に限定する。同ディレクトリはGit ignore対象で、Evidence Gateの走査対象外。
+- `observed_order`は発言順序、`cause_hypothesis`は仮説、`causal_review`は人の確認として別々に扱う。自動検査や人の同意を因果の実験的証明にしない。
+- 人手校正は短い自然文をAgentが軸に対応付けてから`record_conversation_review.py`へ渡す。未回答はpendingのまま比較対象外。
+- `export_correction_case.py`が作るものは、context review・承認・実Agent実行前の候補に限る。自動スキル変更、昇格、Production接続、Cron切替を起動しない。
+- 確認: `python3.11 -m unittest tests.test_evaluate_session_with_claude tests.test_auto_evaluate_recent_session tests.test_conversation_review tests.test_review_cycle`。
+- 2026-10-26に実会話1件のv2レポートを生成。開始時の問いは`not_observable`、6軸のうち4軸が`not_observable`・2軸が`partial`。人手校正pendingで、妥当性・昇格・改善の証拠ではない。別の日次評価を再送しない
+
 ### Step 1: FRAMEWORK.md を読む
 
 Level 1〜9 の定義を読んで、各レベルの要件を理解してください。
@@ -40,11 +50,13 @@ L1 単発実行 → L2 固定ワークフロー → L3 条件分岐・検証
 
 後者は、Human-in-the-Loopで人間の暗黙知をAgentが構造化し、Evidence・反証・次の検証へ接続する能力を評価します。エンゲストロームとの対応は作業仮説であり、固定的な普遍Schemaとは扱いません。
 
-因果順序を必ず記録してください。
+実会話v2では、観測された発言順と意味上の原因仮説・人の確認を分離する。次の値は順序ラベル候補であり、因果の証明ではありません。
 
-- `Evidence → Agent update → user judgment`: 自律性のEvidence候補
-- `user judgment → Agent structuring`: 協働形成のEvidence
-- 順序が欠ける場合: `not_observable`
+- `evidence_agent_update_user_judgment`: 該当する発言位置の前後関係を検査する候補
+- `user_judgment_agent_structuring`: ユーザーの方向づけより後にAgentの構造化がある候補
+- `not_observable`: 順序を確認できない。未回答の人手レビューへ変換しない
+
+人の確認は別の校正記録へ残し、順序検査合格だけで自律性を確定しません。
 
 ### Step 3: Levelとゲートの解釈
 

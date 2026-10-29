@@ -255,3 +255,21 @@ A quarantine audit failure is not silently ignored. It is reported as a failed a
 - **Decision**: replace per-event accepted/rejected/duplicate/conflict lists with category-level counts. Reports must not expose per-event opaque references.
 - **Counting contract**: `accepted` counts exact consumer ACKs; `rejected` is split by invalid outbox rows, invalid ledger rows, and invalid receipts; `conflict` reports Outbox and ledger conflict rows separately. `duplicate` remains `null` with a reason code until duplicate occurrences are durably observed. Reason buckets count rows/receipts, not unique events, and must not be summed as a distinct-event total.
 - **Boundary**: this resolves the report-privacy format only. It does not complete WP2/WP3 or authorize Gateway, SessionDB, R2, or production access.
+
+## Decision note — Local conversation review v2
+
+- **Status**: local A–C implementation and one v2 report completed; user-approved report-only Cron points to v2; scheduled E2E and human calibration remain pending
+- **Decision source**: user request to execute `docs/anthropic-insights-implementation-plan.md` in Discord (`1564236449472323647`)
+- **Decision**: implement the plan's A–C in a local worktree. Reuse the existing approved channel selector and shared daily trial ledger. After explicit user approval, connect the existing report-only Cron and wrapper to v2; keep Production, Gateway, Promotion, and Agent-promotion paths unchanged.
+- **Data boundary**: store minimum evidence excerpts, evaluation, human review, comparison, and correction candidates only under ignored `conversation-review-output/`, outside Promotion Gate scan roots. Never infer human approval, causal proof, Agent improvement, or promotion from structural checks or model labels.
+- **Compatibility**: preserve legacy five-axis comparison input; six-axis reviews use a distinct v2 record. Unanswered labels remain pending and outside the comparison denominator.
+- **Verification**: Cron job `35b6e4cf551e` is enabled for 09:00 JST, uses the v2 worktree and delivers stdout to the approved Discord channel. Config read-back passed; actual scheduled evaluation and post are pending.
+- **Next boundary**: real-Agent before/after execution, skill update, Git publication, or promotion decision requires its own explicit approval.
+
+## Decision note — One live-operation plan for local conversation review v2
+
+- **Status**: planning document unified in local uncommitted `anthropic-insights-impl` worktree; no code, Cron, Gateway, or Promotion change authorized by this note
+- **Decision source**: 2026-10-28 Discord `#agent-level` user instruction to unify the work-plan SSOT and create the live-operation plan (`1564810137737371689`).
+- **Decision**: `docs/usable-first-plan.md` is the only active work-order and acceptance-plan SSOT for the report-only real-conversation review v2. `docs/anthropic-insights-implementation-plan.md` retains A–C implementation history; `docs/gateway-real-conversation-evaluation-work-plan.md` is a separate metadata-only runtime track. `docs/current-evaluation-architecture.md` remains the architecture/navigation map and this decision log remains decision history. Actual scheduler settings, shared trial ledger, saved reports, and Discord posts remain primary operational observations.
+- **Observed trigger**: the shared trial ledger records a saved 10/26 one-shot report and failed attempts without report names on 10/27 and 10/28. The scheduled job remains enabled, while the failure phase is unobserved. Shadow fixture PASS does not resolve that failure.
+- **Next action**: P0 safe failure-phase diagnosis in `docs/usable-first-plan.md`. External provider re-evaluation, Cron pause/resume, scope changes, Gateway cutover, and Git commit/push remain separate decisions. The earlier user decision to wait for a real evaluation result before commit/push still applies.
