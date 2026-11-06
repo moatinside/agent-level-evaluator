@@ -18,8 +18,19 @@ module = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = module
 spec.loader.exec_module(module)
 
-ALLOWLIST_CHANNEL = module.ALLOWLIST[0]
-ALLOWLIST_CHANNEL_ID = next(iter(module.ALLOWED_CHANNEL_IDS))
+ALLOWLIST_CHANNEL = "Synthetic Evaluation Channel"
+ALLOWLIST_CHANNEL_ID = "000000000000000000"
+ALLOWLIST_CHANNELS = ((ALLOWLIST_CHANNEL_ID, ALLOWLIST_CHANNEL),)
+
+
+def write_policy(path: Path, enabled: bool = True) -> Path:
+    path.write_text(json.dumps({
+        "external_evaluation_enabled": enabled,
+        "provider": "claude-code",
+        "approved_payload": "user_assistant_message_content",
+        "allowed_channels": [{"channel_id": ALLOWLIST_CHANNEL_ID, "display_name": ALLOWLIST_CHANNEL}],
+    }), encoding="utf-8")
+    return path
 
 
 def make_db(path: Path, rows: list[tuple[str, float, str, str, str, int, int, list[str]]]) -> None:
@@ -74,10 +85,10 @@ class AutoEvaluateRecentSessionTests(unittest.TestCase):
             make_db(db, [
                 ("allowed-old", now - 100, "discord", "group", ALLOWLIST_CHANNEL, 0, 0, ["q", "a"]),
                 ("allowed-new", now - 10, "discord", "group", ALLOWLIST_CHANNEL, 0, 0, ["q2", "a2"]),
-                ("other-channel", now, "discord", "group", "AIBusinessDevelopment / #scs", 0, 0, ["private", "text"]),
+                ("other-channel", now, "discord", "group", "Other Synthetic Channel", 0, 0, ["private", "text"]),
                 ("dm", now, "discord", "dm", ALLOWLIST_CHANNEL, 0, 0, ["dm", "text"]),
             ])
-            candidate = module.select_candidate(db, set(), now)
+            candidate = module.select_candidate(db, set(), now, allowed_channels=ALLOWLIST_CHANNELS)
             self.assertIsNotNone(candidate)
             assert candidate
             self.assertEqual(candidate.session_id, "allowed-new")
@@ -90,7 +101,7 @@ class AutoEvaluateRecentSessionTests(unittest.TestCase):
             make_db(db, [("wrong-channel-id", now - 10, "discord", "group", ALLOWLIST_CHANNEL, 0, 0, ["q", "a"])])
             with sqlite3.connect(db) as conn:
                 conn.execute("UPDATE sessions SET chat_id = 'wrong-id'")
-            self.assertIsNone(module.select_candidate(db, set(), now))
+            self.assertIsNone(module.select_candidate(db, set(), now, allowed_channels=ALLOWLIST_CHANNELS))
 
     def test_skips_oversized_session_and_selects_next_eligible(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -100,7 +111,7 @@ class AutoEvaluateRecentSessionTests(unittest.TestCase):
                 ("small", now - 20, "discord", "group", ALLOWLIST_CHANNEL, 0, 0, ["q", "a"]),
                 ("large", now - 10, "discord", "group", ALLOWLIST_CHANNEL, 0, 0, ["q", "a", "q2", "a2"]),
             ])
-            candidate = module.select_candidate(db, set(), now, max_messages=3)
+            candidate = module.select_candidate(db, set(), now, allowed_channels=ALLOWLIST_CHANNELS, max_messages=3)
             self.assertIsNotNone(candidate)
             assert candidate
             self.assertEqual(candidate.session_id, "small")
@@ -128,11 +139,12 @@ class AutoEvaluateRecentSessionTests(unittest.TestCase):
             sid = "session-private-id"
             make_db(db, [(sid, now - 10, "discord", "group", ALLOWLIST_CHANNEL, 0, 0, ["質問 https://example.test/x", "回答"])] )
             module.ensure_state_schema(state)
-            candidate = module.select_candidate(db, set(), now)
+            candidate = module.select_candidate(db, set(), now, allowed_channels=ALLOWLIST_CHANNELS)
             self.assertIsNotNone(candidate)
             assert candidate
+            reason_canary = "AUTO_EVAL_REASON_CANARY_82B1"
             fake_result = {"axes": [
-                {"axis": axis, "status": "partial", "evidence_positions": [1], "reason": "根拠に基づく短い理由。"}
+                {"axis": axis, "status": "partial", "evidence_positions": [1], "reason": reason_canary}
                 for axis in module.evaluator.AXES
             ]}
             with patch.object(module.evaluator, "run_claude", return_value=fake_result) as call:
@@ -142,9 +154,11 @@ class AutoEvaluateRecentSessionTests(unittest.TestCase):
                 )
             self.assertEqual(call.call_count, 1)
             self.assertEqual(result["status"], "OK")
-            report = Path(result["report"]).read_text(encoding="utf-8")
+            report = (reports / result["report"]).read_text(encoding="utf-8")
             self.assertNotIn(sid, report)
             self.assertNotIn("https://", report)
+            self.assertNotIn("質問", report)
+            self.assertNotIn(reason_canary, report)
             self.assertIn(candidate.session_ref[:12], report)
             self.assertEqual(module.load_processed_refs(state), set())
 
@@ -178,13 +192,13 @@ class AutoEvaluateRecentSessionTests(unittest.TestCase):
             now = 2_000_000_000.0
             make_db(db, [("session1", now - 10, "discord", "group", ALLOWLIST_CHANNEL, 0, 0, ["q", "a"])] )
             module.ensure_state_schema(state)
-            candidate = module.select_candidate(db, set(), now)
+            candidate = module.select_candidate(db, set(), now, allowed_channels=ALLOWLIST_CHANNELS)
             assert candidate
             self.assertTrue(module._reserve_attempt(state, candidate, now))
             module._finish_attempt(state, now, "succeeded", "existing.md")
             output = io.StringIO()
             with patch.object(module.evaluator, "run_claude") as call, redirect_stdout(output):
-                status = module.run_cycle(db_path=db, state_path=state, reports_dir=root / "reports", now_epoch=now)
+                status = module.run_cycle(db_path=db, state_path=state, reports_dir=root / "reports", now_epoch=now, policy_path=write_policy(root / "policy.json"))
             self.assertEqual(status, 0)
             call.assert_not_called()
             self.assertEqual(output.getvalue(), "")
@@ -206,6 +220,7 @@ class AutoEvaluateRecentSessionTests(unittest.TestCase):
                 status = module.run_cycle(
                     db_path=db, state_path=state, reports_dir=reports,
                     now_epoch=now, claude_path="/fake/claude",
+                    policy_path=write_policy(root / "policy.json"),
                 )
             self.assertEqual(status, 0)
             self.assertEqual(call.call_count, 1)
@@ -213,9 +228,11 @@ class AutoEvaluateRecentSessionTests(unittest.TestCase):
             self.assertEqual(notice["status"], "OK")
             self.assertEqual(notice["messages"], 2)
             self.assertNotIn(sid, output.getvalue())
-            report = Path(notice["report"]).read_text(encoding="utf-8")
+            self.assertNotIn(str(root), output.getvalue())
+            report = (reports / notice["report"]).read_text(encoding="utf-8")
             self.assertNotIn(sid, report)
             self.assertNotIn("https://secret.example", report)
+            self.assertNotIn("q ", report)
             with sqlite3.connect(state) as conn:
                 attempt = conn.execute("SELECT status, report_name FROM attempts").fetchone()
             self.assertEqual(attempt, ("succeeded", Path(notice["report"]).name))
@@ -228,16 +245,78 @@ class AutoEvaluateRecentSessionTests(unittest.TestCase):
             now = 2_000_000_000.0
             make_db(db, [("session-failed", now - 10, "discord", "group", ALLOWLIST_CHANNEL, 0, 0, ["q", "a"])])
             module.ensure_state_schema(state)
-            candidate = module.select_candidate(db, set(), now)
+            candidate = module.select_candidate(db, set(), now, allowed_channels=ALLOWLIST_CHANNELS)
             assert candidate
             self.assertTrue(module._reserve_attempt(state, candidate, now))
             module._finish_attempt(state, now, "failed")
             output = io.StringIO()
             with patch.object(module.evaluator, "run_claude") as call, redirect_stdout(output):
-                status = module.run_cycle(db_path=db, state_path=state, reports_dir=root / "reports", now_epoch=now)
+                status = module.run_cycle(db_path=db, state_path=state, reports_dir=root / "reports", now_epoch=now, policy_path=write_policy(root / "policy.json"))
             self.assertEqual(status, 0)
             call.assert_not_called()
             self.assertEqual(output.getvalue(), "")
+    def test_run_cycle_blocks_missing_policy_before_side_effects(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output = io.StringIO()
+            with patch.object(module.evaluator, "run_claude") as call, redirect_stdout(output):
+                status = module.run_cycle(
+                    db_path=root / "missing.db", state_path=root / "state.sqlite3",
+                    reports_dir=root / "reports", now_epoch=2_000_000_000.0,
+                    policy_path=root / "missing-policy.json",
+                )
+            self.assertEqual(status, 2)
+            call.assert_not_called()
+            self.assertEqual(json.loads(output.getvalue()), {"status": "BLOCKED", "phase": "policy_not_configured"})
+            self.assertFalse((root / "state.sqlite3").exists())
+            self.assertFalse((root / "reports").exists())
+
+    def test_disabled_policy_blocks_live_cycle_before_side_effects(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            policy = write_policy(root / "policy.json", enabled=False)
+            output = io.StringIO()
+            with patch.object(module.evaluator, "run_claude") as call, redirect_stdout(output):
+                status = module.run_cycle(
+                    db_path=root / "missing.db", state_path=root / "state.sqlite3",
+                    reports_dir=root / "reports", now_epoch=2_000_000_000.0,
+                    policy_path=policy,
+                )
+            self.assertEqual(status, 2)
+            call.assert_not_called()
+            self.assertEqual(json.loads(output.getvalue()), {"status": "BLOCKED", "phase": "external_evaluation_disabled"})
+            self.assertFalse((root / "state.sqlite3").exists())
+
+    def test_dry_run_with_disabled_policy_uses_only_synthetic_allowlist(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            db = root / "state.db"
+            policy = write_policy(root / "policy.json", enabled=False)
+            make_db(db, [("synthetic-session", 2_000_000_000.0 - 10, "discord", "group", ALLOWLIST_CHANNEL, 0, 0, ["q", "a"])])
+            output = io.StringIO()
+            with patch.object(module.evaluator, "run_claude") as call, redirect_stdout(output):
+                status = module.run_cycle(
+                    db_path=db, state_path=root / "state.sqlite3", reports_dir=root / "reports",
+                    now_epoch=2_000_000_000.0, dry_run=True, policy_path=policy,
+                )
+            self.assertEqual(status, 0)
+            call.assert_not_called()
+            notice = json.loads(output.getvalue())
+            self.assertEqual(notice["status"], "DRY_RUN")
+            self.assertNotIn("channel", notice)
+            self.assertNotIn(ALLOWLIST_CHANNEL, output.getvalue())
+            self.assertNotIn(ALLOWLIST_CHANNEL_ID, output.getvalue())
+
+    def test_unknown_cli_argument_is_not_echoed(self) -> None:
+        import subprocess
+        canary = "SYNTHETIC-ARGUMENT-CANARY"
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), "--unknown", canary],
+            capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertNotIn(canary, result.stdout + result.stderr)
+        self.assertEqual(result.stderr, "invalid command line arguments\n")
 
 
 if __name__ == "__main__":

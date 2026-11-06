@@ -21,8 +21,11 @@ RANK = {"not_observable": 0, "fail": 1, "partial": 2, "pass": 3}
 
 
 def compare_records(evaluation: dict[str, Any], review: dict[str, Any]) -> dict[str, Any]:
-    if evaluation.get("schema_version") != 2 or review.get("schema_version") != 2:
-        raise ValueError("only evaluation/review schema v2 is supported")
+    if evaluation.get("schema_version") != 3 or review.get("schema_version") != 2:
+        raise ValueError("only evaluation v3 and review v2 are supported")
+    import evaluate_session_with_claude as evaluator
+    if not evaluator.validate_persisted_record(evaluation):
+        raise ValueError("invalid evaluation record")
     if review.get("comparison_type") != "model_vs_human":
         raise ValueError("review comparison_type mismatch")
     if evaluation.get("evaluation_ref") != review.get("evaluation_ref") or evaluation.get("input_hash") != review.get("input_hash"):

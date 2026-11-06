@@ -5,3 +5,5 @@ __pycache__/
 
 # Local-only conversation evaluation material
 conversation-review-output/
+/evaluation-reports/automatic/
+/evaluation-reports/manual/

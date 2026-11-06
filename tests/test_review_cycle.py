@@ -20,19 +20,45 @@ sys.modules[spec.name] = cycle
 spec.loader.exec_module(cycle)
 
 
+TEST_CHANNEL_ID = "000000000000000000"
+TEST_CHANNEL_NAME = "synthetic-evaluation-channel"
+
+
+def write_test_policy(path: Path) -> None:
+    path.write_text(json.dumps({
+        "external_evaluation_enabled": True,
+        "provider": "claude-code",
+        "approved_payload": "user_assistant_message_content",
+        "allowed_channels": [{"channel_id": TEST_CHANNEL_ID, "display_name": TEST_CHANNEL_NAME}],
+    }), encoding="utf-8")
+
+
+_REAL_RUN_CYCLE = cycle.run_cycle
+
+def run_cycle_with_test_policy(*, db_path: Path, **kwargs):
+    policy_path = kwargs.pop("policy_path", db_path.parent / "policy.json")
+    if not policy_path.exists():
+        write_test_policy(policy_path)
+    return _REAL_RUN_CYCLE(db_path=db_path, policy_path=policy_path, **kwargs)
+
+
+cycle.run_cycle = run_cycle_with_test_policy
+
+
 def make_db(path: Path, now: float) -> None:
+    write_test_policy(path.parent / "policy.json")
     with sqlite3.connect(path) as conn:
         conn.execute("CREATE TABLE sessions (id TEXT, ended_at REAL, source TEXT, chat_type TEXT, display_name TEXT, profile_name TEXT, hidden INTEGER, archived INTEGER, chat_id TEXT)")
         conn.execute("CREATE TABLE messages (id INTEGER, session_id TEXT, role TEXT, content TEXT, timestamp REAL, active INTEGER)")
-        conn.execute("INSERT INTO sessions VALUES ('session-secret-id', ?, 'discord', 'group', ?, 'default', 0, 0, ?)", (now - 10, cycle.selector.ALLOWLIST[0], next(iter(cycle.selector.ALLOWED_CHANNEL_IDS))))
-        conn.execute("INSERT INTO messages VALUES (1, 'session-secret-id', 'user', 'question', ?, 1)", (now - 12,))
-        conn.execute("INSERT INTO messages VALUES (2, 'session-secret-id', 'assistant', 'answer', ?, 1)", (now - 11,))
+        conn.execute("INSERT INTO sessions VALUES ('synthetic-session', ?, 'discord', 'group', ?, 'default', 0, 0, ?)", (now - 10, TEST_CHANNEL_NAME, TEST_CHANNEL_ID))
+        conn.execute("INSERT INTO messages VALUES (1, 'synthetic-session', 'user', 'synthetic question', ?, 1)", (now - 12,))
+        conn.execute("INSERT INTO messages VALUES (2, 'synthetic-session', 'assistant', 'synthetic answer', ?, 1)", (now - 11,))
 
 
 def make_valid_record(evaluation_ref: str) -> dict[str, object]:
-    evidence = {"position": 1, "start": 0, "end": 8, "role": "user", "excerpt": "question"}
+    evidence = {"position": 1, "start": 0, "end": 8, "role": "user"}
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "evaluation_ref": evaluation_ref,
         "input_hash": "sha256:" + "a" * 64,
         "created_at": "2026-10-28T00:00:00+00:00",
@@ -45,12 +71,12 @@ def make_valid_record(evaluation_ref: str) -> dict[str, object]:
             "summary_positions": [], "summary_detection": "role_only", "transcript_saved": False,
         },
         "axes": [
-            {"axis": name, "status": "partial", "reason": "fixture reason", "evidence_positions": [1], "evidence_spans": [dict(evidence)]}
+            {"axis": name, "status": "partial", "reason": "omitted_by_privacy_policy", "evidence_positions": [1], "evidence_spans": [dict(evidence)]}
             for name in cycle.evaluator.AXES
         ],
         "trajectory": {
-            "question_initial": {"summary": "initial question", "evidence_spans": [dict(evidence)], "unobservable_reason": None},
-            "question_current": {"summary": "current question", "evidence_spans": [dict(evidence)], "unobservable_reason": None},
+            "question_initial": {"summary": "omitted_by_privacy_policy", "evidence_spans": [dict(evidence)], "unobservable_reason": None},
+            "question_current": {"summary": "omitted_by_privacy_policy", "evidence_spans": [dict(evidence)], "unobservable_reason": None},
             "question_changes": [],
         },
         "human_review": {"review_status": "pending"},
@@ -101,7 +127,7 @@ class ReviewCycleTests(unittest.TestCase):
                 result = cycle.run_cycle(db_path=db, state_path=state, output_root=root / "output", now_epoch=now, dry_run=True)
             self.assertEqual(result, 0)
             self.assertIn('"status": "DRY_RUN"', output.getvalue())
-            self.assertNotIn("session-secret-id", output.getvalue())
+            self.assertNotIn("synthetic-session", output.getvalue())
             self.assertFalse(state.exists())
 
     def test_new_format_execution_uses_shared_daily_ledger_and_dedupes(self):
@@ -111,13 +137,13 @@ class ReviewCycleTests(unittest.TestCase):
             db, state, output_root = root / "state.db", root / "automation" / "state.sqlite3", root / "output"
             make_db(db, now)
             output = io.StringIO()
-            expected_ref = cycle.selector.session_ref("session-secret-id")[:12]
+            expected_ref = cycle.selector.session_ref("synthetic-session")[:12]
             result_value = make_evaluator_result(output_root, evaluation_ref=expected_ref, changes=1)
             with patch.object(cycle.evaluator, "evaluate_session", return_value=result_value) as evaluate, redirect_stdout(output):
                 status = cycle.run_cycle(db_path=db, state_path=state, output_root=output_root, now_epoch=now)
             self.assertEqual(status, 0)
             self.assertEqual(evaluate.call_count, 1)
-            self.assertNotIn("session-secret-id", output.getvalue())
+            self.assertNotIn("synthetic-session", output.getvalue())
             self.assertEqual(cycle.selector.attempts_today(state, now), 1)
             self.assertEqual(len(cycle.selector.load_processed_refs(state)), 1)
             output.truncate(0)
@@ -136,7 +162,7 @@ class ReviewCycleTests(unittest.TestCase):
                 now = 2_000_000_000.0
                 db, state, output_root = root / "state.db", root / "automation" / "state.sqlite3", root / "output"
                 make_db(db, now)
-                expected_ref = cycle.selector.session_ref("session-secret-id")[:12]
+                expected_ref = cycle.selector.session_ref("synthetic-session")[:12]
                 other_ref = "0" * 12 if expected_ref != "0" * 12 else "1" * 12
                 result_ref = other_ref if mismatch == "evaluation_ref" else expected_ref
                 evaluation_path_ref = other_ref if mismatch in {"evaluation_ref", "evaluation_path"} else expected_ref
@@ -168,7 +194,7 @@ class ReviewCycleTests(unittest.TestCase):
                 now = 2_000_000_000.0
                 db, state, output_root = root / "state.db", root / "automation" / "state.sqlite3", root / "output"
                 make_db(db, now)
-                expected_ref = cycle.selector.session_ref("session-secret-id")[:12]
+                expected_ref = cycle.selector.session_ref("synthetic-session")[:12]
                 other_ref = "0" * 12 if expected_ref != "0" * 12 else "1" * 12
                 record = make_valid_record(expected_ref)
                 report_override = None
@@ -206,7 +232,7 @@ class ReviewCycleTests(unittest.TestCase):
             actual_root.mkdir()
             output_root = root / "output-link"
             output_root.symlink_to(actual_root, target_is_directory=True)
-            expected_ref = cycle.selector.session_ref("session-secret-id")[:12]
+            expected_ref = cycle.selector.session_ref("synthetic-session")[:12]
             result_value = make_evaluator_result(output_root, evaluation_ref=expected_ref)
             output = io.StringIO()
             with patch.object(cycle.evaluator, "evaluate_session", return_value=result_value), redirect_stdout(output):
@@ -432,7 +458,7 @@ class ReviewCycleTests(unittest.TestCase):
             now = 2_000_000_000.0
             db, state, output_root = root / "state.db", root / "automation" / "state.sqlite3", root / "output"
             make_db(db, now)
-            expected_ref = cycle.selector.session_ref("session-secret-id")[:12]
+            expected_ref = cycle.selector.session_ref("synthetic-session")[:12]
             result_value = make_evaluator_result(output_root, evaluation_ref=expected_ref)
             output = io.StringIO()
             with patch.object(cycle.evaluator, "evaluate_session", return_value=result_value), patch.object(cycle.selector, "_record_success_and_finish_attempt", side_effect=sqlite3.OperationalError("PRIVATE_DB_DETAIL")), redirect_stdout(output):

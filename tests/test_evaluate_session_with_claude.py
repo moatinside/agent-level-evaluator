@@ -51,16 +51,16 @@ def valid_model_result() -> dict:
 
 class EvaluateSessionWithClaudeTests(unittest.TestCase):
     def test_render_transcript_numbers_and_omits_tool_output(self) -> None:
-        transcript, excerpts = module.render_transcript([
+        transcript, sources = module.render_transcript([
             {"role": "user", "content": "質問です"},
             {"role": "tool_result", "content": "x" * 400},
         ])
         self.assertIn("[1] USER: 質問です", transcript)
         self.assertIn("[2] TOOL_RESULT:", transcript)
-        self.assertEqual(excerpts[2], module.TOOL_OMISSION)
+        self.assertEqual(sources[2], module.TOOL_OMISSION)
 
     def test_render_transcript_omits_unapproved_roles_and_does_not_echo_role_names(self) -> None:
-        transcript, sources, excerpts = module.render_transcript_with_sources([
+        transcript, sources = module.render_transcript_with_sources([
             {"role": "user", "content": "確認したい点"},
             {"role": "summary", "content": "SUMMARY_BODY_CANARY"},
             {"role": "system", "content": "SYSTEM_BODY_CANARY"},
@@ -76,7 +76,6 @@ class EvaluateSessionWithClaudeTests(unittest.TestCase):
         self.assertNotIn("SYSTEM:", transcript)
         for position in (2, 3):
             self.assertEqual(sources[position], module.UNAPPROVED_ROLE_OMISSION)
-            self.assertEqual(excerpts[position], module.UNAPPROVED_ROLE_OMISSION)
 
     def test_compaction_redacts_urls_email_and_secret_without_echoing_them(self) -> None:
         content = "[Triggering message id: `123` — use as id] https://example.test/private user@example.test api_key=sk-ant-abcdefghijklmnop123456"
@@ -256,7 +255,7 @@ class EvaluateSessionWithClaudeTests(unittest.TestCase):
             self.assertEqual((readback_error.exception.phase, readback_error.exception.code), ("report_readback", "report_readback_mismatch"))
             self.assertFalse(list(output_root.rglob("evaluation.json")))
 
-    def test_evaluate_session_writes_json_and_report_readback_without_identifiers(self) -> None:
+    def test_evaluate_session_persists_positions_and_labels_without_free_text(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             db = root / "state.db"
@@ -267,15 +266,25 @@ class EvaluateSessionWithClaudeTests(unittest.TestCase):
             rubric = root / "rubric.md"
             rubric.write_text("rubric", encoding="utf-8")
             output_root = root / "conversation-review-output"
-            with patch.object(module, "run_claude", return_value=valid_model_result()):
+            model_result = valid_model_result()
+            canary = "MODEL_ECHO_PRIVATE_CANARY_7F3A"
+            for axis in model_result["axes"]:
+                axis["reason"] = canary
+            trajectory = model_result["trajectory"]
+            trajectory["question_initial"]["summary"] = canary
+            trajectory["question_current"]["summary"] = canary
+            change = trajectory["question_changes"][0]
+            change.update({"before": canary, "after": canary, "decision_impact": canary, "next_validation": canary})
+            change["cause_hypothesis"]["summary"] = canary
+            with patch.object(module, "run_claude", return_value=model_result):
                 outcome = module.evaluate_session("secret-session-id", db_path=db, rubric_path=rubric, output_root=output_root)
             self.assertEqual(outcome["status"], "OK")
             record = json.loads(Path(outcome["evaluation"]).read_text(encoding="utf-8"))
             report = Path(outcome["report"]).read_text(encoding="utf-8")
-            self.assertEqual(record["schema_version"], 2)
+            self.assertEqual(record["schema_version"], 3)
             self.assertEqual(record["human_review"]["review_status"], "pending")
             self.assertEqual(record["trajectory"]["question_changes"][0]["causal_review"]["review_status"], "pending")
-            schema = json.loads((SCRIPT.parents[1] / "schemas" / "conversation-review-v2.schema.json").read_text(encoding="utf-8"))
+            schema = json.loads((SCRIPT.parents[1] / "schemas" / "conversation-review-v3.schema.json").read_text(encoding="utf-8"))
             self.assertEqual(set(record), set(schema["properties"]))
             self.assertEqual(set(record), set(schema["required"]))
             self.assertEqual(set(record["input"]), set(schema["properties"]["input"]["properties"]))
@@ -284,7 +293,16 @@ class EvaluateSessionWithClaudeTests(unittest.TestCase):
             self.assertEqual(set(record["trajectory"]["question_initial"]), set(schema["$defs"]["question"]["properties"]))
             self.assertEqual(set(record["trajectory"]["question_changes"][0]), set(schema["$defs"]["change"]["properties"]))
             self.assertEqual(set(record["trajectory"]["question_changes"][0]["event_positions"]), set(schema["$defs"]["events"]["properties"]))
-            self.assertNotIn("secret-session-id", report + Path(outcome["evaluation"]).read_text(encoding="utf-8"))
+            self.assertEqual(set(record["axes"][0]["evidence_spans"][0]), set(schema["$defs"]["span"]["properties"]))
+            self.assertNotIn("excerpt", schema["$defs"]["span"]["properties"])
+            persisted = report + Path(outcome["evaluation"]).read_text(encoding="utf-8")
+            self.assertNotIn(canary, persisted)
+            self.assertEqual(record["axes"][0]["reason"], module.PERSISTED_TEXT_OMITTED)
+            self.assertEqual(record["trajectory"]["question_initial"]["summary"], module.PERSISTED_TEXT_OMITTED)
+            self.assertNotIn("secret-session-id", persisted)
+            self.assertNotIn("excerpt", persisted)
+            for message in MESSAGES:
+                self.assertNotIn(message["content"], persisted)
             self.assertIn("因果を証明しません", report)
             self.assertEqual(Path(outcome["evaluation"]).stat().st_mode & 0o777, 0o600)
             existing_eval = Path(outcome["evaluation"]).read_text(encoding="utf-8")
@@ -404,11 +422,12 @@ class EvaluateSessionWithClaudeTests(unittest.TestCase):
     def test_extract_json_accepts_fenced_response(self) -> None:
         self.assertEqual(module.extract_json("```json\n{\"axes\": []}\n```"), {"axes": []})
 
-    def test_legacy_report_renderer_keeps_reviewer_evidence(self) -> None:
+    def test_legacy_report_renderer_keeps_positions_without_message_text(self) -> None:
         axes = [{"axis": axis, "status": "pass", "evidence_positions": [1], "reason": "理由"} for axis in module.AXES]
-        report = module.make_report("s1", axes, {1: "根拠の発言"})
-        self.assertIn("[1] 根拠の発言", report)
-        self.assertIn("記憶は前提にしない", report)
+        report = module.make_report("s1", axes)
+        self.assertIn("[1]", report)
+        self.assertNotIn("excerpt", report)
+        self.assertIn("発言位置", report)
 
 
 if __name__ == "__main__":

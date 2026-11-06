@@ -10,11 +10,11 @@ import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
-OUTPUT_ROOT = ROOT / "conversation-review-output"
+OUTPUT_ROOT = Path.home() / ".local" / "state" / "agent-level-evaluator" / "conversation-reviews"
 
 
 def _safe(value: str, name: str) -> str:
@@ -25,8 +25,9 @@ def _safe(value: str, name: str) -> str:
 
 
 def build_case(evaluation: dict[str, Any], review: dict[str, Any], *, axis: str, target_position: int, correction_summary: str, expected_behavior: str) -> dict[str, Any]:
-    if evaluation.get("schema_version") != 2 or review.get("schema_version") != 2:
-        raise ValueError("only v2 evaluation and review records are supported")
+    import evaluate_session_with_claude as evaluator
+    if evaluation.get("schema_version") != 3 or review.get("schema_version") != 2 or not evaluator.validate_persisted_record(evaluation):
+        raise ValueError("only a valid v3 evaluation and v2 human review are supported")
     if evaluation.get("evaluation_ref") != review.get("evaluation_ref") or evaluation.get("input_hash") != review.get("input_hash"):
         raise ValueError("evaluation reference or input hash mismatch")
     reviewed = {item.get("axis"): item for item in review.get("axes", []) if isinstance(item, dict)}
@@ -39,7 +40,7 @@ def build_case(evaluation: dict[str, Any], review: dict[str, Any], *, axis: str,
     target_spans = [span for span in model_items[axis].get("evidence_spans", []) if span.get("position") == target_position and span.get("role") == "assistant"]
     if not target_spans:
         raise ValueError("target position must be an assistant evidence span for the failed axis")
-    target_excerpt = target_spans[0]["excerpt"]
+    target_span = target_spans[0]
     source_spans: list[dict[str, Any]] = []
     trajectory = evaluation.get("trajectory", {})
     for key in ("question_initial", "question_current"):
@@ -54,27 +55,27 @@ def build_case(evaluation: dict[str, Any], review: dict[str, Any], *, axis: str,
             key = (span["position"], span["start"], span["end"])
             before[key] = span
     selected_context = [before[key] for key in sorted(before)][:6]
-    context_length = sum(len(item["excerpt"]) for item in selected_context)
-    while context_length > 1_200 and selected_context:
-        removed = selected_context.pop()
-        context_length -= len(removed["excerpt"])
     reason = human.get("reason")
     if not isinstance(reason, str) or not reason.strip():
         raise ValueError("human failure reason is required")
+    _safe(reason, "human_failure.reason")
+    _safe(correction_summary, "correction_summary")
+    _safe(expected_behavior, "expected_behavior")
+    omitted = evaluator.PERSISTED_TEXT_OMITTED
     case_seed = f"{evaluation['evaluation_ref']}|{axis}|{target_position}"
     case_ref = hashlib.sha256(case_seed.encode("utf-8")).hexdigest()[:16]
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "case_ref": case_ref,
         "case_kind": "human_confirmed_correction_candidate",
         "source": {"evaluation_ref": evaluation["evaluation_ref"], "input_hash": evaluation["input_hash"], "axis": axis},
-        "human_failure": {"status": "fail", "reason": reason},
-        "target": {"position": target_position, "actual_behavior_excerpt": target_excerpt},
-        "correction_summary": _safe(correction_summary, "correction_summary"),
-        "expected_behavior": _safe(expected_behavior, "expected_behavior"),
+        "human_failure": {"status": "fail", "reason": omitted},
+        "target": {"position": target_position, "start": target_span["start"], "end": target_span["end"], "role": "assistant"},
+        "correction_summary": omitted,
+        "expected_behavior": omitted,
         "regression_input": {
-            "messages_before_target": [{"position": item["position"], "role": item["role"], "excerpt": item["excerpt"]} for item in selected_context],
-            "context_status": "pending_context_review" if not selected_context else "excerpts_only_review_required",
+            "messages_before_target": [{"position": item["position"], "role": item["role"], "start": item["start"], "end": item["end"]} for item in selected_context],
+            "context_status": "positions_only_review_required" if selected_context else "no_context_spans",
             "after_correction_answer_or_label_included": False,
         },
         "post_correction_observation": {"status": "not_observed", "position": None},
@@ -117,11 +118,16 @@ def export_case(directory: Path, *, axis: str, target_position: int, correction_
     if output.exists():
         raise FileExistsError("correction-case.json already exists; refusing to overwrite")
     _write_atomic(output, case)
-    return {"status": "CANDIDATE_CREATED", "case_ref": case["case_ref"], "path": str(output), "case_status": case["case_status"], "execution_status": case["execution_status"]}
+    return {"status": "CANDIDATE_CREATED", "case_ref": case["case_ref"], "path": "correction-case.json", "case_status": case["case_status"], "execution_status": case["execution_status"]}
+
+
+class SafeArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> NoReturn:
+        self.exit(2, "invalid command-line arguments\n")
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Create a non-executable regression candidate after a human-confirmed failure")
+    parser = SafeArgumentParser(description="Create a non-executable regression candidate after a human-confirmed failure")
     parser.add_argument("evaluation_dir", type=Path)
     parser.add_argument("--axis", required=True)
     parser.add_argument("--target-position", type=int, required=True)
@@ -132,7 +138,7 @@ def main() -> int:
     try:
         directory.relative_to(OUTPUT_ROOT.resolve())
     except ValueError:
-        raise ValueError("evaluation directory must be under conversation-review-output")
+        raise ValueError("evaluation directory must be under the local review output root")
     result = export_case(directory, axis=args.axis, target_position=args.target_position, correction_summary=args.correction_summary, expected_behavior=args.expected_behavior)
     print(json.dumps(result, ensure_ascii=False))
     return 0
@@ -141,6 +147,12 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except (OSError, ValueError, json.JSONDecodeError) as exc:
-        print(json.dumps({"status": "FAIL", "error": str(exc)}, ensure_ascii=False), file=sys.stderr)
+    except json.JSONDecodeError:
+        print(json.dumps({"status": "FAIL", "error": "invalid_json"}), file=sys.stderr)
+        raise SystemExit(1)
+    except OSError:
+        print(json.dumps({"status": "FAIL", "error": "file_unavailable"}), file=sys.stderr)
+        raise SystemExit(1)
+    except ValueError:
+        print(json.dumps({"status": "FAIL", "error": "invalid_case_input"}), file=sys.stderr)
         raise SystemExit(1)

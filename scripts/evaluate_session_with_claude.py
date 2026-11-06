@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Evaluate a local Hermes session with Claude Code and emit a minimal v2 review.
+"""Evaluate an approved local Hermes session and emit a minimal review.
 
-The source SQLite database is read-only. The full transcript and prompt are never
-persisted. Reports are written only under conversation-review-output/.
+The source SQLite database is read-only. The transcript and prompt are not
+persisted. Reports contain verdicts, controlled status labels, and evidence positions;
+evaluator-generated prose and message excerpts are never written to disk.
 """
 from __future__ import annotations
 
@@ -24,13 +25,14 @@ from typing import Any, NoReturn
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DB = Path.home() / ".hermes" / "state.db"
 DEFAULT_RUBRIC = ROOT / "docs" / "human-calibration-rubric.md"
-OUTPUT_ROOT = ROOT / "conversation-review-output"
+OUTPUT_ROOT = Path.home() / ".local" / "state" / "agent-level-evaluator" / "conversation-reviews"
 MAX_CONTENT_CHARS = 1_500
 MAX_PROMPT_CHARS = 20_000
-REPORT_EXCERPT_CHARS = 240
+MAX_EVIDENCE_SPAN_CHARS = 240
 TOOL_OMISSION = "[ツール結果の本文は外部評価・レポートから除外]"
 METADATA_OMISSION = "[セッションメタデータ本文は外部評価・レポートから除外]"
 UNAPPROVED_ROLE_OMISSION = "[許可されていないroleの本文は外部評価・レポートから除外]"
+PERSISTED_TEXT_OMITTED = "omitted_by_privacy_policy"
 URL_RE = re.compile(r"https?://\S+", re.IGNORECASE)
 PHONE_RE = re.compile(r"(?<!\d)(?:\+?\d[\d ()-]{8,}\d)(?!\d)")
 LOCAL_PATH_RE = re.compile(r"(?:/Users|/home)/[^\s]+")
@@ -139,23 +141,20 @@ def _safe_output_text(value: Any, field: str, *, nullable: bool = False, limit: 
     return value.strip()
 
 
-def render_transcript_with_sources(messages: list[dict[str, Any]]) -> tuple[str, dict[int, str], dict[int, str]]:
+def render_transcript_with_sources(messages: list[dict[str, Any]]) -> tuple[str, dict[int, str]]:
     sources: dict[int, str] = {}
-    excerpts: dict[int, str] = {}
     lines: list[str] = []
     for position, message in enumerate(messages, start=1):
         role = str(message["role"]).lower()
         role_label = role.upper() if role in {"user", "assistant", "tool", "tool_result", "session_meta"} else "OTHER"
         text = compact_content(role, str(message["content"]))
         sources[position] = text
-        excerpts[position] = text[:REPORT_EXCERPT_CHARS] + ("…" if len(text) > REPORT_EXCERPT_CHARS else "")
         lines.append(f"[{position}] {role_label}: {text}")
-    return "\n".join(lines), sources, excerpts
+    return "\n".join(lines), sources
 
 
 def render_transcript(messages: list[dict[str, Any]]) -> tuple[str, dict[int, str]]:
-    transcript, _, excerpts = render_transcript_with_sources(messages)
-    return transcript, excerpts
+    return render_transcript_with_sources(messages)
 
 
 def build_prompt(rubric: str, transcript: str) -> str:
@@ -233,12 +232,12 @@ def _validate_spans(value: Any, sources: dict[int, str], roles: dict[int, str], 
         pos, start, end = span.get("position"), span.get("start"), span.get("end")
         if type(pos) is not int or pos not in sources or roles.get(pos) not in {"user", "assistant"}:
             raise ValueError(f"{field} references a missing or non-conversation message")
-        if type(start) is not int or type(end) is not int or start < 0 or end <= start or end > len(sources[pos]) or end - start > REPORT_EXCERPT_CHARS:
+        if type(start) is not int or type(end) is not int or start < 0 or end <= start or end > len(sources[pos]) or end - start > MAX_EVIDENCE_SPAN_CHARS:
             raise ValueError(f"{field} has an invalid character range")
         excerpt = sources[pos][start:end]
         if not excerpt.strip() or TOOL_OMISSION in excerpt:
             raise ValueError(f"{field} contains no reviewable conversation text")
-        spans.append({"position": pos, "start": start, "end": end, "role": roles[pos], "excerpt": excerpt})
+        spans.append({"position": pos, "start": start, "end": end, "role": roles[pos]})
     return spans
 
 
@@ -257,8 +256,8 @@ def validate_result(result: dict[str, Any], message_count: int) -> list[dict[str
         if status not in VALID_STATUSES:
             raise ValueError(f"invalid status for {axis}")
         _validate_positions(positions, message_count, f"evidence_positions for {axis}")
-        clean_reason = _safe_output_text(reason, f"reason for {axis}")
-        indexed[axis] = {"axis": axis, "status": status, "evidence_positions": positions, "reason": clean_reason}
+        _safe_output_text(reason, f"reason for {axis}")
+        indexed[axis] = {"axis": axis, "status": status, "evidence_positions": positions, "reason": PERSISTED_TEXT_OMITTED}
     if set(indexed) != set(AXES):
         raise ValueError("all six axes are required exactly once")
     return [indexed[axis] for axis in AXES]
@@ -274,7 +273,11 @@ def _validate_question(value: Any, field: str, sources: dict[int, str], roles: d
         raise ValueError(f"{field} needs a summary or an unobservable reason")
     if summary is not None and reason is not None:
         raise ValueError(f"{field} cannot be both observed and unobservable")
-    return {"summary": summary, "evidence_spans": spans, "unobservable_reason": reason}
+    return {
+        "summary": PERSISTED_TEXT_OMITTED if summary is not None else None,
+        "evidence_spans": spans,
+        "unobservable_reason": "not_observable" if reason is not None else None,
+    }
 
 
 def _positions_for_event(value: Any, field: str, message_count: int, roles: dict[int, str], expected_role: str | None = None) -> list[int]:
@@ -334,20 +337,22 @@ def validate_trajectory(result: dict[str, Any], sources: dict[int, str], roles: 
         if cause is not None:
             if not isinstance(cause, dict) or set(cause) != {"summary", "evidence_spans"}:
                 raise ValueError("cause_hypothesis must contain exactly summary and evidence_spans or be null")
-            cause_summary = _safe_output_text(cause.get("summary"), "cause_hypothesis.summary")
+            _safe_output_text(cause.get("summary"), "cause_hypothesis.summary")
             cause_spans = _validate_spans(cause.get("evidence_spans"), sources, roles, "cause_hypothesis.evidence_spans", required=False)
-            cause = {"summary": cause_summary, "evidence_spans": cause_spans}
+            cause = {"summary": PERSISTED_TEXT_OMITTED, "evidence_spans": cause_spans}
         impact = _safe_output_text(change.get("decision_impact"), "decision_impact", nullable=True)
         next_validation = _safe_output_text(change.get("next_validation"), "next_validation", nullable=True)
         outcome = change.get("outcome")
         if outcome not in OUTCOMES:
             raise ValueError("invalid outcome")
         changes.append({
-            "change_id": f"update-{index:03d}", "before": before, "after": after,
+            "change_id": f"update-{index:03d}", "before": PERSISTED_TEXT_OMITTED, "after": PERSISTED_TEXT_OMITTED,
             "observed_order": order, "event_positions": event_positions,
             "evidence_spans": spans, "cause_hypothesis": cause,
             "causal_review": {"review_status": "pending", "verdict": None, "reason": None},
-            "decision_impact": impact, "next_validation": next_validation, "outcome": outcome,
+            "decision_impact": PERSISTED_TEXT_OMITTED if impact is not None else None,
+            "next_validation": PERSISTED_TEXT_OMITTED if next_validation is not None else None,
+            "outcome": outcome,
         })
     return {"question_initial": initial, "question_current": current, "question_changes": changes}
 
@@ -366,10 +371,10 @@ def validate_full_result(result: dict[str, Any], messages: list[dict[str, Any]],
         name, status = item.get("axis"), item.get("status")
         if name not in AXES or name in axes_by_name or status not in VALID_STATUSES:
             raise ValueError("unexpected, duplicate, or invalid axis")
-        reason = _safe_output_text(item.get("reason"), f"reason for {name}")
+        _safe_output_text(item.get("reason"), f"reason for {name}")
         spans = _validate_spans(item.get("evidence_spans"), sources, roles, f"evidence_spans for {name}", required=status != "not_observable")
         axes_by_name[name] = {
-            "axis": name, "status": status, "reason": reason,
+            "axis": name, "status": status, "reason": PERSISTED_TEXT_OMITTED,
             "evidence_positions": sorted({span["position"] for span in spans}), "evidence_spans": spans,
         }
     if set(axes_by_name) != set(AXES):
@@ -378,39 +383,39 @@ def validate_full_result(result: dict[str, Any], messages: list[dict[str, Any]],
     return [axes_by_name[name] for name in AXES], trajectory
 
 
-def make_report(session_id: str, axes: list[dict[str, Any]], excerpts: dict[int, str]) -> str:
+def make_report(session_id: str, axes: list[dict[str, Any]]) -> str:
     """Legacy scheduler report renderer retained until its separate cutover."""
     session_ref = hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:12]
-    lines = ["# 実会話評価レポート", "", f"- 対象セッション参照: `{session_ref}`（再実行用の原IDは保存しない）", "- 評価者: Claude Code（Hermes外部のCLIエージェント）", "- 保存範囲: 根拠位置・短い抜粋・判定のみ。会話全文とClaudeへの入力は保存しない。", "", "## 軸別判定と確認材料"]
+    lines = ["# 実会話評価レポート", "", f"- 対象セッション参照: `{session_ref}`（再実行用の原IDは保存しない）", "- 評価者: Claude Code（Hermes外部のCLIエージェント）", "- 保存範囲: 判定、固定理由コード、根拠となる発言位置。会話本文・抜粋・Claudeへの入力は保存しない。", "", "## 軸別判定と確認材料"]
     for item in axes:
-        references = [f"[{position}] {excerpts[position][:REPORT_EXCERPT_CHARS]}{'…' if len(excerpts[position]) > REPORT_EXCERPT_CHARS else ''}" for position in item["evidence_positions"]]
-        lines.extend(["", f"### {item['axis']}: {item['status']}", item["reason"], "", "**根拠として評価者が参照した発言**", *[f"- {ref}" for ref in references]])
-    lines.extend(["", "## レビュー時の注意", "- 根拠の発言番号と抜粋を読み、判定の妥当性を判断する。過去の会話の記憶は前提にしない。", "- 外部評価は一票であり、事実認定や能力昇格を自動決定しない。"])
+        references = [f"[{position}]" for position in item["evidence_positions"]]
+        lines.extend(["", f"### {item['axis']}: {item['status']}", PERSISTED_TEXT_OMITTED, "", "**根拠発言位置**", *[f"- {ref}" for ref in references]])
+    lines.extend(["", "## レビュー時の注意", "- 元会話を別途参照できる権限がある場合のみ、発言位置を使って判定を確認してください。", "- 外部評価は一票であり、事実認定や能力昇格を自動決定しません。評価理由や要約にも機微な内容が含まれる可能性があるため、共有前に確認してください。"])
     return "\n".join(lines) + "\n"
 
 
 def make_review_report(record: dict[str, Any]) -> str:
     lines = [
         "# 実会話評価レポート（軌跡付き・校正待ち）", "",
-        f"- 評価参照: `{record['evaluation_ref']}`", "- 形式: v2",
+        f"- 評価参照: `{record['evaluation_ref']}`", "- 形式: v3",
         f"- 対象メッセージ数: {record['input']['message_count']}（全文は保存していません）",
         f"- 切詰めた発言: {record['input']['truncated_positions'] or 'なし'}",
         f"- ツール結果の除外: {record['input']['tool_result_positions'] or 'なし'}",
         f"- セッションメタデータの除外: {record['input']['metadata_positions'] or 'なし'}",
         "- 要約の検出はrole名だけに基づき、発言本文に埋め込まれた要約は未識別の可能性があります。",
         f"- 評価者モデル: {record['evaluator']['model_id']}",
-        "- 根拠抜粋は外部評価へ渡した最小化済み本文から機械抽出しています。",
+        "- 会話本文・根拠抜粋は保存していません。根拠は発言位置と文字範囲のみです。",
         "", "## 6軸評価",
     ]
     for axis in record["axes"]:
         lines.extend(["", f"### {axis['axis']}: {axis['status']}", axis["reason"]])
-        lines.extend([f"- [{span['position']}] {span['excerpt']}" for span in axis["evidence_spans"]] or ["- 根拠を観測できませんでした。"])
+        lines.extend([f"- 発言 [{span['position']}]、文字範囲 {span['start']}–{span['end']}" for span in axis["evidence_spans"]] or ["- 根拠を観測できませんでした。"])
     trajectory = record["trajectory"]
     lines.extend(["", "## 問いの軌跡"])
     for key, title in (("question_initial", "開始時の問い"), ("question_current", "現在の問い")):
         item = trajectory[key]
         lines.extend(["", f"### {title}", item["summary"] or f"未確認：{item['unobservable_reason']}"])
-        lines.extend([f"- [{span['position']}] {span['excerpt']}" for span in item["evidence_spans"]])
+        lines.extend([f"- 発言 [{span['position']}]、文字範囲 {span['start']}–{span['end']}" for span in item["evidence_spans"]])
     if not trajectory["question_changes"]:
         lines.extend(["", "問いの更新は確認されませんでした。これはAgentの失敗を意味しません。"])
     for change in trajectory["question_changes"]:
@@ -423,7 +428,7 @@ def make_review_report(record: dict[str, Any]) -> str:
             f"- 次の検証: {change['next_validation'] or '未確認'}",
             f"- 結果状態: `{change['outcome']}`",
         ])
-        lines.extend([f"- [{span['position']}] {span['excerpt']}" for span in change["evidence_spans"]])
+        lines.extend([f"- 発言 [{span['position']}]、文字範囲 {span['start']}–{span['end']}" for span in change["evidence_spans"]])
     lines.extend([
         "", "## 人手校正の返答方法", 
         "レポート参照と軸名を指定し、短い自然文で伝えてください。例：",
@@ -440,7 +445,7 @@ _SCHEMA_SUPPORTED_KEYS = {
 }
 
 
-def _matches_v2_schema(value: Any, schema: dict[str, Any], root_schema: dict[str, Any]) -> bool:
+def _matches_schema(value: Any, schema: dict[str, Any], root_schema: dict[str, Any]) -> bool:
     if not isinstance(schema, dict) or set(schema) - _SCHEMA_SUPPORTED_KEYS:
         return False
     ref = schema.get("$ref")
@@ -449,7 +454,7 @@ def _matches_v2_schema(value: Any, schema: dict[str, Any], root_schema: dict[str
         if not isinstance(ref, str) or not ref.startswith(prefix):
             return False
         target = root_schema.get("$defs", {}).get(ref[len(prefix):])
-        if not isinstance(target, dict) or not _matches_v2_schema(value, target, root_schema):
+        if not isinstance(target, dict) or not _matches_schema(value, target, root_schema):
             return False
         schema = {key: item for key, item in schema.items() if key != "$ref"}
         if not schema:
@@ -458,7 +463,7 @@ def _matches_v2_schema(value: Any, schema: dict[str, Any], root_schema: dict[str
     if "oneOf" in schema:
         variants = schema["oneOf"]
         if not isinstance(variants, list) or sum(
-            _matches_v2_schema(value, variant, root_schema) for variant in variants
+            _matches_schema(value, variant, root_schema) for variant in variants
         ) != 1:
             return False
     if "type" in schema:
@@ -493,12 +498,12 @@ def _matches_v2_schema(value: Any, schema: dict[str, Any], root_schema: dict[str
             return False
         if schema.get("additionalProperties") is False and set(value) - set(properties):
             return False
-        if any(key in value and not _matches_v2_schema(value[key], child, root_schema) for key, child in properties.items()):
+        if any(key in value and not _matches_schema(value[key], child, root_schema) for key, child in properties.items()):
             return False
     if isinstance(value, list):
         if len(value) < schema.get("minItems", 0) or len(value) > schema.get("maxItems", len(value)):
             return False
-        if "items" in schema and any(not _matches_v2_schema(item, schema["items"], root_schema) for item in value):
+        if "items" in schema and any(not _matches_schema(item, schema["items"], root_schema) for item in value):
             return False
     if isinstance(value, str):
         if len(value) < schema.get("minLength", 0) or len(value) > schema.get("maxLength", len(value)):
@@ -514,17 +519,19 @@ def _matches_v2_schema(value: Any, schema: dict[str, Any], root_schema: dict[str
 
 
 def validate_persisted_record(record: Any) -> bool:
-    """Validate the saved v2 record against its checked-in schema without optional packages."""
+    """Validate the saved v3 record against its checked-in schema without optional packages."""
     try:
-        schema = json.loads((ROOT / "schemas" / "conversation-review-v2.schema.json").read_text(encoding="utf-8"))
-        return _matches_v2_schema(record, schema, schema)
+        schema = json.loads((ROOT / "schemas" / "conversation-review-v3.schema.json").read_text(encoding="utf-8"))
+        return _matches_schema(record, schema, schema)
     except (OSError, ValueError, TypeError, KeyError, re.error):
         return False
 
 
 def _validate_output_root(output_root: Path) -> None:
     try:
-        info = output_root.lstat()
+        if output_root.expanduser().resolve().is_relative_to(ROOT.resolve()):
+            raise EvaluationFailure("report_write", "report_path_unavailable")
+        info = output_root.expanduser().lstat()
     except FileNotFoundError:
         return
     except OSError:
@@ -589,7 +596,7 @@ def _write_atomic(path: Path, text: str) -> None:
 def evaluate_session(session_id: str, *, db_path: Path = DEFAULT_DB, rubric_path: Path = DEFAULT_RUBRIC, output_root: Path = OUTPUT_ROOT, claude_path: str | None = None) -> dict[str, Any]:
     try:
         messages = read_session(db_path, session_id)
-        transcript, sources, _ = render_transcript_with_sources(messages)
+        transcript, sources = render_transcript_with_sources(messages)
         rubric = rubric_path.read_text(encoding="utf-8")
         prompt = build_prompt(rubric, transcript)
     except (OSError, sqlite3.Error):
@@ -606,7 +613,7 @@ def evaluate_session(session_id: str, *, db_path: Path = DEFAULT_DB, rubric_path
         raise EvaluationFailure("result_validation", "invalid_model_result") from None
     session_ref = hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:12]
     record = {
-        "schema_version": 2,
+        "schema_version": 3,
         "evaluation_ref": session_ref,
         "input_hash": _sha256(prompt),
         "created_at": datetime.now().astimezone().isoformat(timespec="seconds"),
@@ -700,7 +707,7 @@ def main() -> int:
     if not args.dry_run:
         raise ValueError("direct evaluation bypasses the approved selector and daily cap; use scripts/run_conversation_review_cycle.py")
     messages = read_session(args.db, args.session_id)
-    transcript, _, _ = render_transcript_with_sources(messages)
+    transcript, _ = render_transcript_with_sources(messages)
     rubric = args.rubric.read_text(encoding="utf-8")
     prompt = build_prompt(rubric, transcript)
     if len(prompt) > MAX_PROMPT_CHARS:

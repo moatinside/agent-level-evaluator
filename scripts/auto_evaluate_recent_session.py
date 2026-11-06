@@ -13,6 +13,7 @@ import fcntl
 import hashlib
 import json
 import os
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -22,7 +23,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,9 +33,10 @@ import evaluate_session_with_claude as evaluator  # noqa: E402
 DB_PATH = Path.home() / ".hermes" / "state.db"
 STATE_DIR = Path.home() / ".hermes" / "agent-level-evaluator-automation"
 STATE_DB = STATE_DIR / "state.sqlite3"
-REPORTS_DIR = ROOT / "evaluation-reports" / "automatic"
-ALLOWLIST = ("AIBusinessDevelopment / #mobile（フランチャイズ）",)
-ALLOWED_CHANNEL_IDS = {"1535083428083409008": ALLOWLIST[0]}
+REPORTS_DIR = Path.home() / ".local" / "state" / "agent-level-evaluator" / "reports" / "automatic"
+POLICY_PATH = STATE_DIR / "policy.json"
+
+
 PROFILE_NAME = "default"
 TIMEZONE = ZoneInfo("Asia/Tokyo")
 LOOKBACK_HOURS = 28
@@ -54,8 +56,58 @@ class Candidate:
     prompt_chars: int
 
 
+@dataclass(frozen=True)
+class EvaluationPolicy:
+    external_evaluation_enabled: bool
+    allowed_channels: tuple[tuple[str, str], ...]
+
+
 def session_ref(session_id: str) -> str:
     return hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:16]
+
+
+def load_policy(policy_path: Path = POLICY_PATH) -> EvaluationPolicy:
+    """Read an explicit operator-owned external-evaluation policy."""
+    path = policy_path.expanduser()
+    if path.resolve().is_relative_to(ROOT.resolve()):
+        raise ValueError("policy_path_not_private")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise FileNotFoundError("policy_not_configured") from None
+    except (OSError, json.JSONDecodeError):
+        raise ValueError("policy_invalid") from None
+    required = {"external_evaluation_enabled", "provider", "approved_payload", "allowed_channels"}
+    if not isinstance(data, dict) or set(data) != required:
+        raise ValueError("policy_invalid")
+    enabled = data["external_evaluation_enabled"]
+    if type(enabled) is not bool or data["provider"] != "claude-code" or data["approved_payload"] != "user_assistant_message_content":
+        raise ValueError("policy_invalid")
+    raw_channels = data["allowed_channels"]
+    if not isinstance(raw_channels, list):
+        raise ValueError("policy_invalid")
+    channels: list[tuple[str, str]] = []
+    for item in raw_channels:
+        if not isinstance(item, dict) or set(item) != {"channel_id", "display_name"}:
+            raise ValueError("policy_invalid")
+        channel_id = item["channel_id"]
+        display_name = item["display_name"]
+        if (
+            not isinstance(channel_id, str)
+            or re.fullmatch(r"[0-9]{17,20}", channel_id) is None
+            or not isinstance(display_name, str)
+            or not display_name
+            or display_name != display_name.strip()
+            or "*" in display_name
+        ):
+            raise ValueError("policy_invalid")
+        pair = (channel_id, display_name)
+        if pair in channels:
+            raise ValueError("policy_invalid")
+        channels.append(pair)
+    if enabled and not channels:
+        raise ValueError("policy_invalid")
+    return EvaluationPolicy(enabled, tuple(channels))
 
 
 def _readonly_uri(path: Path) -> str:
@@ -98,15 +150,15 @@ def select_candidate(
     processed_refs: set[str],
     now_epoch: float,
     *,
-    allowlist: tuple[str, ...] = ALLOWLIST,
+    allowed_channels: tuple[tuple[str, str], ...] = (),
     lookback_hours: int = LOOKBACK_HOURS,
     max_messages: int = MAX_MESSAGES,
     max_prompt_chars: int = MAX_PROMPT_CHARS,
 ) -> Candidate | None:
     """Choose the newest short, completed session matching the exact allowlist."""
-    if not allowlist:
+    if not allowed_channels:
         return None
-    channel_pairs = [(channel_id, name) for channel_id, name in ALLOWED_CHANNEL_IDS.items() if name in allowlist]
+    channel_pairs = list(allowed_channels)
     if not channel_pairs:
         return None
     channel_filter = " OR ".join("(chat_id = ? AND display_name = ?)" for _ in channel_pairs)
@@ -191,6 +243,8 @@ def _valid_existing_report(path: Path, session_id: str, reference: str) -> bool:
         return False
     if session_id in text or "http://" in text or "https://" in text:
         return False
+    if any(line.startswith("- [") and "] " in line for line in text.splitlines()):
+        return False
     if f"`{reference[:12]}`" not in text:
         return False
     return all(f"### {axis}: " in text for axis in evaluator.AXES)
@@ -274,7 +328,7 @@ def evaluate_candidate(
 ) -> dict[str, Any]:
     """Run the existing evaluator and persist a minimal, read-back-checked report."""
     messages = evaluator.read_session(db_path, candidate.session_id)
-    transcript, excerpts = evaluator.render_transcript(messages)
+    transcript, _ = evaluator.render_transcript(messages)
     rubric = evaluator.DEFAULT_RUBRIC.read_text(encoding="utf-8")
     prompt = evaluator.build_prompt(rubric, transcript)
     if len(messages) > MAX_MESSAGES or len(prompt) > MAX_PROMPT_CHARS:
@@ -283,18 +337,18 @@ def evaluate_candidate(
     output = reports_dir / f"{datetime.fromtimestamp(now_epoch, TIMEZONE):%Y-%m-%d}-{candidate.session_ref}-claude-evaluation.md"
     if output.exists():
         if _valid_existing_report(output, candidate.session_id, candidate.session_ref):
-            return {"status": "RECOVERED_EXISTING_REPORT", "report": str(output), "messages": len(messages)}
+            return {"status": "RECOVERED_EXISTING_REPORT", "report": output.name, "messages": len(messages)}
         raise FileExistsError("a report already exists at the automatic output path")
 
     raw = evaluator.run_claude(prompt, claude_path or shutil.which("claude") or str(Path.home() / ".local/bin/claude"))
     axes = evaluator.validate_result(raw, len(messages))
-    report = evaluator.make_report(candidate.session_id, axes, excerpts)
+    report = evaluator.make_report(candidate.session_id, axes)
     _write_report_atomic(output, report)
     if output.read_text(encoding="utf-8") != report:
         raise OSError("report read-back did not match the written report")
     if not _valid_existing_report(output, candidate.session_id, candidate.session_ref):
         raise ValueError("report failed privacy/completeness read-back checks")
-    return {"status": "OK", "report": str(output), "messages": len(messages), "axes": len(axes)}
+    return {"status": "OK", "report": output.name, "messages": len(messages), "axes": len(axes)}
 
 
 def _emit(value: dict[str, Any], *, stream: Any = None) -> None:
@@ -309,11 +363,26 @@ def run_cycle(
     now_epoch: float | None = None,
     dry_run: bool = False,
     claude_path: str | None = None,
+    policy_path: Path = POLICY_PATH,
 ) -> int:
     now = time.time() if now_epoch is None else now_epoch
+    try:
+        policy = load_policy(policy_path)
+    except FileNotFoundError:
+        _emit({"status": "BLOCKED", "phase": "policy_not_configured"})
+        return 2
+    except (OSError, ValueError):
+        _emit({"status": "BLOCKED", "phase": "policy_invalid"})
+        return 2
+    if not dry_run and not policy.external_evaluation_enabled:
+        _emit({"status": "BLOCKED", "phase": "external_evaluation_disabled"})
+        return 2
+    if not dry_run and any(path.expanduser().resolve().is_relative_to(ROOT.resolve()) for path in (state_path, reports_dir)):
+        _emit({"status": "BLOCKED", "phase": "repository_output_path"})
+        return 2
     if dry_run:
         try:
-            candidate = select_candidate(db_path, load_processed_refs(state_path), now)
+            candidate = select_candidate(db_path, load_processed_refs(state_path), now, allowed_channels=policy.allowed_channels)
         except (OSError, sqlite3.Error, ValueError):
             _emit({"status": "FAIL", "phase": "candidate_scan"})
             return 1
@@ -322,7 +391,6 @@ def run_cycle(
         else:
             _emit({
                 "status": "DRY_RUN",
-                "channel": candidate.display_name,
                 "messages": candidate.message_count,
                 "prompt_chars": candidate.prompt_chars,
             })
@@ -339,7 +407,7 @@ def run_cycle(
         if attempts_today(state_path, now) >= MAX_PER_JST_DAY:
             return 0
         try:
-            candidate = select_candidate(db_path, load_processed_refs(state_path), now)
+            candidate = select_candidate(db_path, load_processed_refs(state_path), now, allowed_channels=policy.allowed_channels)
         except (OSError, sqlite3.Error, ValueError):
             _emit({"status": "FAIL", "phase": "candidate_scan"})
             return 1
@@ -361,16 +429,21 @@ def run_cycle(
             _finish_attempt(state_path, now, "failed")
             _emit({"status": "FAIL", "phase": "external_evaluation_or_report"})
             return 1
-        result["channel"] = candidate.display_name
         _emit(result)
         return 0
 
 
+class SafeArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> NoReturn:
+        self.exit(2, "invalid command line arguments\n")
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Automatically evaluate one recent allowlisted Hermes session per JST day.")
+    parser = SafeArgumentParser(description="Automatically evaluate one recent session only when an operator policy enables external review.")
     parser.add_argument("--db", type=Path, default=DB_PATH)
     parser.add_argument("--state-db", type=Path, default=STATE_DB)
     parser.add_argument("--reports-dir", type=Path, default=REPORTS_DIR)
+    parser.add_argument("--policy-file", type=Path, default=POLICY_PATH)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--claude-path")
     args = parser.parse_args()
@@ -380,6 +453,7 @@ def main() -> int:
         reports_dir=args.reports_dir.expanduser(),
         dry_run=args.dry_run,
         claude_path=args.claude_path,
+        policy_path=args.policy_file.expanduser(),
     )
 
 
