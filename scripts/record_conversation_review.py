@@ -33,8 +33,9 @@ def _safe_reason(value: str, label: str) -> str:
 def _load_evaluation(directory: Path) -> dict[str, Any]:
     path = directory / "evaluation.json"
     value = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(value, dict) or value.get("schema_version") != 2:
-        raise ValueError("unsupported evaluation schema")
+    import evaluate_session_with_claude as evaluator
+    if not isinstance(value, dict) or value.get("schema_version") != 3 or not evaluator.validate_persisted_record(value):
+        raise ValueError("unsupported or invalid evaluation schema")
     if value.get("evaluation_ref") != directory.name:
         raise ValueError("evaluation reference does not match directory")
     if not isinstance(value.get("input_hash"), str):
@@ -74,6 +75,12 @@ def _load_or_initialize_review(evaluation: dict[str, Any], review_path: Path) ->
     actual_changes = {x.get("change_id") for x in value.get("causal_reviews", []) if isinstance(x, dict)}
     if expected_changes != actual_changes:
         raise ValueError("review causal update set mismatch")
+    for item in value["axes"]:
+        if item.get("review_status") == "recorded":
+            item["reason"] = "omitted_by_privacy_policy"
+    for item in value["causal_reviews"]:
+        if item.get("review_status") == "recorded":
+            item["reason"] = "omitted_by_privacy_policy"
     return value
 
 
@@ -86,7 +93,9 @@ def record_axis(directory: Path, axis: str, status: str, reason: str) -> dict[st
     entry = next(item for item in review["axes"] if item["axis"] == axis)
     if entry["review_status"] == "recorded":
         raise ValueError("axis already reviewed; refusing to overwrite")
-    entry.update({"review_status": "recorded", "status": status, "reason": _safe_reason(reason, "review reason")})
+    import evaluate_session_with_claude as evaluator
+    _safe_reason(reason, "review reason")
+    entry.update({"review_status": "recorded", "status": status, "reason": evaluator.PERSISTED_TEXT_OMITTED})
     review["updated_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
     _write_json_atomic(review_path, review)
     return {"status": "RECORDED", "evaluation_ref": evaluation["evaluation_ref"], "axis": axis}
@@ -103,7 +112,9 @@ def record_causal(directory: Path, change_id: str, verdict: str, reason: str) ->
         raise ValueError("unknown causal update")
     if entry["review_status"] == "recorded":
         raise ValueError("causal update already reviewed; refusing to overwrite")
-    entry.update({"review_status": "recorded", "verdict": verdict, "reason": _safe_reason(reason, "causal review reason")})
+    import evaluate_session_with_claude as evaluator
+    _safe_reason(reason, "causal review reason")
+    entry.update({"review_status": "recorded", "verdict": verdict, "reason": evaluator.PERSISTED_TEXT_OMITTED})
     review["updated_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
     _write_json_atomic(review_path, review)
     return {"status": "RECORDED", "evaluation_ref": evaluation["evaluation_ref"], "change_id": change_id}

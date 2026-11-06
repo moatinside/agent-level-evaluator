@@ -32,31 +32,41 @@ def make_evaluation(ref="abcdef123456", input_hash="sha256:" + "a" * 64):
         axes.append({
             "axis": axis,
             "status": "partial",
-            "reason": "モデルの短い理由",
+            "reason": evaluator.PERSISTED_TEXT_OMITTED,
             "evidence_positions": [2],
-            "evidence_spans": [{"position": 2, "start": 0, "end": 10, "role": "assistant", "excerpt": "以前の回答抜粋"}],
+            "evidence_spans": [{"position": 2, "start": 0, "end": 10, "role": "assistant"}],
         })
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "evaluation_ref": ref,
         "input_hash": input_hash,
+        "created_at": "2026-11-01T00:00:00+00:00",
+        "evaluator": {"name": "Claude Code", "model_id": "synthetic-model", "configuration": "synthetic-test"},
+        "rubric_hash": "sha256:" + "b" * 64,
+        "input": {
+            "message_count": 4, "active_only": True, "tool_results_omitted": True,
+            "max_message_chars": 1500, "truncated_positions": [], "tool_result_positions": [],
+            "metadata_positions": [], "summary_positions": [], "summary_detection": "role_only",
+            "transcript_saved": False,
+        },
         "axes": axes,
         "trajectory": {
-            "question_initial": {"summary": "開始時", "evidence_spans": [{"position": 1, "start": 0, "end": 10, "role": "user", "excerpt": "最初の問い"}], "unobservable_reason": None},
-            "question_current": {"summary": "現在", "evidence_spans": [{"position": 4, "start": 0, "end": 10, "role": "assistant", "excerpt": "現在の問い"}], "unobservable_reason": None},
+            "question_initial": {"summary": evaluator.PERSISTED_TEXT_OMITTED, "evidence_spans": [{"position": 1, "start": 0, "end": 10, "role": "user"}], "unobservable_reason": None},
+            "question_current": {"summary": evaluator.PERSISTED_TEXT_OMITTED, "evidence_spans": [{"position": 4, "start": 0, "end": 10, "role": "assistant"}], "unobservable_reason": None},
             "question_changes": [{
-                "change_id": "update-001", "before": "以前", "after": "以後",
+                "change_id": "update-001", "before": evaluator.PERSISTED_TEXT_OMITTED, "after": evaluator.PERSISTED_TEXT_OMITTED,
                 "observed_order": "user_judgment_agent_structuring",
                 "event_positions": {"evidence": [], "agent_update": [4], "user_judgment": [3]},
                 "evidence_spans": [
-                    {"position": 3, "start": 0, "end": 10, "role": "user", "excerpt": "訂正の短い抜粋"},
-                    {"position": 4, "start": 0, "end": 10, "role": "assistant", "excerpt": "修正の短い抜粋"},
+                    {"position": 3, "start": 0, "end": 10, "role": "user"},
+                    {"position": 4, "start": 0, "end": 10, "role": "assistant"},
                 ],
-                "cause_hypothesis": {"summary": "ユーザー方向づけの可能性", "evidence_spans": []},
+                "cause_hypothesis": {"summary": evaluator.PERSISTED_TEXT_OMITTED, "evidence_spans": []},
                 "causal_review": {"review_status": "pending", "verdict": None, "reason": None},
                 "decision_impact": None, "next_validation": None, "outcome": "unknown",
             }],
         },
+        "human_review": {"review_status": "pending"},
     }
 
 
@@ -76,6 +86,7 @@ class ConversationReviewTests(unittest.TestCase):
             review = json.loads((directory / "review.json").read_text(encoding="utf-8"))
             self.assertEqual(review["input_hash"], evaluation["input_hash"])
             self.assertEqual(sum(x["review_status"] == "pending" for x in review["axes"]), 5)
+            self.assertEqual(review["axes"][1]["reason"], evaluator.PERSISTED_TEXT_OMITTED)
             review_schema = json.loads((ROOT / "schemas" / "conversation-review-human-v2.schema.json").read_text(encoding="utf-8"))
             self.assertEqual(set(review), set(review_schema["properties"]))
             self.assertEqual(set(review["axes"][0]), set(review_schema["$defs"]["axis"]["properties"]))
@@ -125,15 +136,29 @@ class ConversationReviewTests(unittest.TestCase):
             correction_summary="ユーザーの訂正を受けて方向を戻した",
             expected_behavior="ユーザーの明示した判断目的へ更新する",
         )
+        serialized_case = json.dumps(case, ensure_ascii=False)
+        self.assertEqual(case["human_failure"]["reason"], evaluator.PERSISTED_TEXT_OMITTED)
+        self.assertEqual(case["correction_summary"], evaluator.PERSISTED_TEXT_OMITTED)
+        self.assertEqual(case["expected_behavior"], evaluator.PERSISTED_TEXT_OMITTED)
+        self.assertEqual(case["target"], {"position": 2, "start": 0, "end": 10, "role": "assistant"})
         self.assertEqual(case["case_status"], "candidate_pending_context_review")
         self.assertEqual(case["execution_status"], "not_run")
         self.assertEqual(case["approval_status"], "pending")
         self.assertEqual(case["regression_input"]["messages_before_target"][0]["position"], 1)
-        self.assertNotIn("訂正の短い抜粋", json.dumps(case["regression_input"], ensure_ascii=False))
+        self.assertNotIn("excerpt", serialized_case)
         self.assertFalse(case["regression_input"]["after_correction_answer_or_label_included"])
-        schema = json.loads((ROOT / "schemas" / "correction-case-v1.schema.json").read_text(encoding="utf-8"))
+        schema = json.loads((ROOT / "schemas" / "correction-case-v2.schema.json").read_text(encoding="utf-8"))
         self.assertEqual(set(case), set(schema["properties"]))
         self.assertEqual(set(case["source"]), set(schema["properties"]["source"]["properties"]))
+
+    def test_case_export_rejects_legacy_excerpt_fields(self):
+        evaluation = make_evaluation()
+        evaluation["axes"][0]["evidence_spans"][0]["excerpt"] = "SYNTHETIC_BODY_CANARY"
+        with self.assertRaisesRegex(ValueError, "valid v3 evaluation"):
+            exporter.build_case(
+                evaluation, {}, axis="initial_question_capture", target_position=2,
+                correction_summary="short review", expected_behavior="follow the selected goal",
+            )
 
     def test_case_rejects_pending_or_non_assistant_target_and_sensitive_text(self):
         evaluation = make_evaluation()
@@ -147,7 +172,7 @@ class ConversationReviewTests(unittest.TestCase):
             exporter.build_case(evaluation, review, axis="evidence_driven_update", target_position=2, correction_summary="api_key=abcdef123456789", expected_behavior="修正")
 
     def test_schema_documents_are_valid_json_with_closed_top_level_objects(self):
-        for name in ("conversation-review-v2.schema.json", "conversation-review-human-v2.schema.json", "conversation-review-comparison-v2.schema.json", "correction-case-v1.schema.json"):
+        for name in ("conversation-review-v2.schema.json", "conversation-review-v3.schema.json", "conversation-review-human-v2.schema.json", "conversation-review-comparison-v2.schema.json", "correction-case-v1.schema.json", "correction-case-v2.schema.json"):
             schema = json.loads((ROOT / "schemas" / name).read_text(encoding="utf-8"))
             self.assertEqual(schema["type"], "object")
             self.assertFalse(schema["additionalProperties"])

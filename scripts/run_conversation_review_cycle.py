@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run one new-format review using the existing allowlist and shared daily cap.
+"""Run one bounded review under the operator-owned policy and shared daily cap.
 
 This is a local one-shot implementation path, not a scheduler or Cron change.
 """
@@ -13,7 +13,7 @@ import stat
 import sys
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -95,18 +95,41 @@ def delivery_failure_notice() -> str:
     return "Agent Level v2: 評価結果の読戻し／配信準備に失敗しました（phase=delivery, code=deliverable_unavailable）。Claudeの再評価は行っていません。"
 
 
-def run_cycle(*, db_path: Path = selector.DB_PATH, state_path: Path = selector.STATE_DB, output_root: Path = evaluator.OUTPUT_ROOT, now_epoch: float | None = None, dry_run: bool = False, claude_path: str | None = None) -> int:
+def run_cycle(
+    *,
+    db_path: Path = selector.DB_PATH,
+    state_path: Path = selector.STATE_DB,
+    output_root: Path = evaluator.OUTPUT_ROOT,
+    now_epoch: float | None = None,
+    dry_run: bool = False,
+    claude_path: str | None = None,
+    policy_path: Path = selector.POLICY_PATH,
+) -> int:
     now = time.time() if now_epoch is None else now_epoch
+    try:
+        policy = selector.load_policy(policy_path)
+    except FileNotFoundError:
+        _emit({"status": "BLOCKED", "error_phase": "policy", "error_code": "policy_not_configured", "daily_cap_consumed": False})
+        return 2
+    except (OSError, ValueError):
+        _emit({"status": "BLOCKED", "error_phase": "policy", "error_code": "policy_invalid", "daily_cap_consumed": False})
+        return 2
+    if not dry_run and not policy.external_evaluation_enabled:
+        _emit({"status": "BLOCKED", "error_phase": "policy", "error_code": "external_evaluation_disabled", "daily_cap_consumed": False})
+        return 2
+    if not dry_run and any(path.expanduser().resolve().is_relative_to(ROOT.resolve()) for path in (state_path, output_root)):
+        _emit({"status": "BLOCKED", "error_phase": "path_validation", "error_code": "repository_output_path", "daily_cap_consumed": False})
+        return 2
     if dry_run:
         try:
-            candidate = selector.select_candidate(db_path, selector.load_processed_refs(state_path), now)
+            candidate = selector.select_candidate(db_path, selector.load_processed_refs(state_path), now, allowed_channels=policy.allowed_channels)
         except Exception:
             _emit({"status": "FAIL", "error_phase": "candidate_scan", "error_code": "candidate_scan_failed", "daily_cap_consumed": False})
             return 1
         if candidate is None:
             _emit({"status": "NO_CANDIDATE", "lookback_hours": selector.LOOKBACK_HOURS})
         else:
-            _emit({"status": "DRY_RUN", "channel": candidate.display_name, "messages": candidate.message_count, "prompt_chars": candidate.prompt_chars})
+            _emit({"status": "DRY_RUN", "messages": candidate.message_count, "prompt_chars": candidate.prompt_chars})
         return 0
 
     try:
@@ -143,7 +166,7 @@ def run_cycle(*, db_path: Path = selector.DB_PATH, state_path: Path = selector.S
             _emit({"status": "DAILY_CAP", "limit": selector.MAX_PER_JST_DAY})
             return 0
         try:
-            candidate = selector.select_candidate(db_path, selector.load_processed_refs(state_path), now)
+            candidate = selector.select_candidate(db_path, selector.load_processed_refs(state_path), now, allowed_channels=policy.allowed_channels)
         except Exception:
             _emit({"status": "FAIL", "error_phase": "candidate_scan", "error_code": "candidate_scan_failed", "daily_cap_consumed": False})
             return 1
@@ -194,16 +217,22 @@ def run_cycle(*, db_path: Path = selector.DB_PATH, state_path: Path = selector.S
                 pass
             _emit({"status": "STATE_WRITE_FAILED", "error_phase": "attempt_ledger", "error_code": "success_record_failed", "daily_cap_consumed": True})
             return 1
-        _emit({"status": "OK", "evaluation_ref": result["evaluation_ref"], "report": result["report"], "axes": result["axes"], "changes": result["changes"]})
+        _emit({"status": "OK", "evaluation_ref": result["evaluation_ref"], "report": relative_report, "axes": result["axes"], "changes": result["changes"]})
         return 0
 
 
+class SafeArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> NoReturn:
+        self.exit(2, "invalid command line arguments\n")
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Select and evaluate at most one approved recent conversation per JST day")
+    parser = SafeArgumentParser(description="Run one local review cycle only when operator policy enables external evaluation")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--claude-path", default=None)
+    parser.add_argument("--policy-file", type=Path, default=selector.POLICY_PATH)
     args = parser.parse_args()
-    return run_cycle(dry_run=args.dry_run, claude_path=args.claude_path)
+    return run_cycle(dry_run=args.dry_run, claude_path=args.claude_path, policy_path=args.policy_file.expanduser())
 
 
 if __name__ == "__main__":
